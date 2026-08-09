@@ -1,0 +1,22 @@
+# Pinned dependencies for Oxel Bot
+# To install: pip install -r requirements.txt
+
+# ── Telegram Bot ──────────────────────────────────────────────────────────────
+python-telegram-bot==20.7
+
+# ── Database ORM ──────────────────────────────────────────────────────────────
+SQLAlchemy==2.0.23
+
+# ── Configuration ─────────────────────────────────────────────────────────────
+python-dotenv==1.0.0
+
+# ── Database Migrations ───────────────────────────────────────────────────────
+alembic==1.12.1
+
+# ── Web Admin Dashboard ───────────────────────────────────────────────────────
+Flask==3.0.3
+Werkzeug==3.0.3
+
+# ── PDF Generation ────────────────────────────────────────────────────────────
+Pillow==10.4.0
+reportlab==4.2.2

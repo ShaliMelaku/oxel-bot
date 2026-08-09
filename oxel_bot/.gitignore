@@ -1,0 +1,73 @@
+# ── Python ─────────────────────────────────────────────────────────────────────
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+
+# ── Virtual Environments ───────────────────────────────────────────────────────
+venv/
+.venv/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# ── Environment & Secrets (NEVER COMMIT) ──────────────────────────────────────
+.env
+.env.local
+.env.*.local
+*.secret
+
+# ── Database files (contain customer data) ────────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+*.db-shm
+*.db-wal
+*.db-journal
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Generated / Output files ──────────────────────────────────────────────────
+*.pdf
+outputs/
+labels/
+generated/
+
+# ── Web Admin Panel (Telegram-based project — not for public repo) ─────────────
+web_admin.py
+
+# ── Test suite (internal use only) ────────────────────────────────────────────
+tests/
+
+# ── Database migrations (local state, not portable) ───────────────────────────
+alembic/
+alembic.ini
+
+# ── Dev-only scripts ──────────────────────────────────────────────────────────
+generate_images.py
+create_enhanced_assets.py
+scratch/
+
+# ── Project-specific local files ─────────────────────────────────────────────
+data/
+.plan
+task.md
+Dockerfile
+.dockerignore
+Procfile
+
+# ── IDE & OS ──────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*~
