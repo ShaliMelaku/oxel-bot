@@ -2,7 +2,7 @@
 
 **Tools for the Digital Craft**
 
-A fully production-ready, end-to-end e-commerce ecosystem built for **Oxel** — a premium wooden desk accessory brand based in Ethiopia. Features a Telegram bot customer storefront, multi-item persistent cart, atomic inventory control, dedicated payment verification state machine, referral/loyalty ledgers, Alembic database migrations, a secure Web Admin Portal, PDF invoice & shipping label generation, and a comprehensive automated test suite.
+A fully production-ready, end-to-end e-commerce platform built for **Oxel** — a premium Ethiopian wooden desk accessory brand. Built on Python and `python-telegram-bot`, featuring a native customer storefront, persistent multi-item shopping cart, atomic inventory reservation, automated payment verification workflows, referral/loyalty transaction ledgers, promo code validation engine, and automated PDF invoice & shipping label generation.
 
 ---
 
@@ -10,268 +10,165 @@ A fully production-ready, end-to-end e-commerce ecosystem built for **Oxel** —
 
 ```
                        ┌─────────────────────────┐
-                       │  Telegram Bot Interface │
+                       │  Telegram User Interface │
                        └────────────┬────────────┘
                                     │
                                     ▼
                        ┌─────────────────────────┐
-                       │  Handlers Layer         │
-                       │  start · catalog · cart │
-                       │  checkout · payment     │
-                       │  tracking · admin       │
-                       │  loyalty · bundle       │
+                       │  Telegram Bot Core      │
+                       │  (python-telegram-bot)  │
                        └────────────┬────────────┘
                                     │
-    ┌───────────────────────────────┴────────────────────────────┐
-    │                                                            │
-    ▼                                                            ▼
-┌──────────────────────────────┐          ┌──────────────────────────────────┐
-│  Web Admin Portal (Flask)    │          │  Business Services Layer         │
-│  • Secure Password Login     │          │  • cart_service                  │
-│  • Session-based Auth        │          │  • order_service                 │
-│  • Payment Verify/Reject     │ ────────►│  • payment_service               │
-│  • Variant Stock Management  │          │  • inventory_service             │
-│  • Shipping Label Generator  │          │  • referral_service              │
-│  • Audit Log Viewer          │          │  • loyalty_service               │
-└──────────────────────────────┘          │  • promo_service                 │
-                                          │  • admin_service                 │
-                                          └────────────────┬─────────────────┘
-                                                           │
-                                                           ▼
-                                          ┌──────────────────────────────────┐
-                                          │  SQLAlchemy ORM + Alembic        │
-                                          │  SQLite (dev) / PostgreSQL (prod)│
-                                          └──────────────────────────────────┘
+                                    ▼
+       ┌─────────────────────────────────────────────────────────┐
+       │                    Handlers Layer                       │
+       │  start · catalog · cart · checkout · payment            │
+       │  tracking · admin · loyalty · bundle · profile · reviews │
+       └────────────────────────────┬────────────────────────────┘
+                                    │
+                                    ▼
+       ┌─────────────────────────────────────────────────────────┐
+       │                Business Services Layer                  │
+       │  • cart_service      • order_service     • payment_service  │
+       │  • inventory_service • referral_service  • loyalty_service  │
+       │  • promo_service     • admin_service                      │
+       └────────────────────────────┬────────────────────────────┘
+                                    │
+                                    ▼
+       ┌─────────────────────────────────────────────────────────┐
+       │               SQLAlchemy ORM Data Access                │
+       │          SQLite (dev/WAL) / PostgreSQL (prod)           │
+       └─────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🌟 Feature Set
+## 🌟 Key Features
 
-### 1. Multi-Item Order Architecture
-- DB-backed `Order` → `OrderItem` relationship with **frozen unit prices** at checkout
-- Multi-item cart converts cleanly to a structured order with full line-item history
-- Legacy `order.product_id` / `order.quantity` kept for backward compatibility
+### 🛒 1. Persistent Multi-Item Cart
+- Database-backed `Cart` and `CartItem` state that survives bot and server restarts.
+- Supports multiple product variants (wood finishes, sizes) and custom engraving notes per item.
+- Real-time cart stock checking prevents checkout of out-of-stock items.
 
-### 2. Persistent Cart
-- DB-backed `Cart` and `CartItem` — survives bot & server restarts
-- Multiple products, multiple variants, customization notes per item
-- Stale out-of-stock cart items are detected at checkout
+### 🔒 2. Atomic Inventory Management
+- Concurrency-safe stock deduction using database row locks (`SELECT...FOR UPDATE`).
+- Prevents negative inventory and overselling under concurrent user checkout spikes.
+- Auto-restores stock if payment is rejected or an order is cancelled.
 
-### 3. Atomic Inventory System
-- Row-level lock-protected stock deductions via `SELECT...FOR UPDATE`
-- Prevents negative balances and overselling under concurrent load
-- Auto-rollback if any cart item fails to deduct during checkout
-- Inventory restored automatically on payment rejection or order cancellation
+### 📦 3. Multi-Item Order Lifecycle & Price Freezing
+- Orders freeze product unit prices at checkout time, insulating existing orders from future price modifications.
+- Complete line-item audit trail with structured `OrderItem` relations.
 
-### 4. Delivery Code Confirmation
-- 6-digit numeric delivery code generated at order creation
-- `/ship ORDER#` sends code to customer; `/confirm_delivery ORDER# CODE` validates and marks `delivered`
-- Wrong code = hard denial; correct code = stock-proof delivery fulfillment
-- Loyalty points auto-awarded on confirmed delivery
+### 🔑 4. Secure Delivery Code Verification
+- Cryptographically random 6-digit delivery confirmation code (`secrets.randbelow`) assigned per order.
+- `/confirm_delivery ORDER# CODE` command allows delivery staff to verify hand-off with the customer.
+- Automated loyalty points distribution upon successful delivery confirmation.
 
-### 5. Referral & Loyalty Ledger
-- Full `LoyaltyTransaction` audit trail — every change is recorded
-- Self-referral and duplicate referral prevention
-- Negative balance prevention on point redemptions
-- VIP tier auto-promotion: Bronze → Silver (1 000 pts) → Gold (2 000 pts)
-- Referral bonus: +500 pts to referrer on first order of referred user
+### 🏅 5. Loyalty & Referral Engine
+- Immutable `LoyaltyTransaction` audit ledger tracking points earned and redeemed.
+- Referral system (+100 points for referrer on first order, 5% welcome discount for referred customer).
+- VIP tier progression system: **Bronze 🥉** → **Silver 🥈** → **Gold 🥇**.
 
-### 6. Promo Code System
-- Server-side validation (prevents client-side manipulation)
-- Supports: % discount, fixed ETB discount, expiry date, max uses, per-user limit, minimum order value
-- Duplicate and expired code prevention
-- Special `MYPOINTS` / loyalty redemption code via cart
+### 🎟️ 6. Server-Side Promo Engine
+- Validates promo codes server-side against discount percentages, fixed ETB values, expiry dates, global usage caps, minimum order values, and per-user usage limits.
 
-### 7. Database Migrations (Alembic)
-- Full Alembic configuration with `alembic.ini` and `env.py`
-- SQLite for local development, PostgreSQL for production (configurable via `DATABASE_URL`)
-- Migration scripts: initial full schema + incremental `delivery_code` addition
-
-### 8. Security
-- **Admin authentication**: Session-based password login in Web Admin (`ADMIN_PASSWORD` env var)
-- **Admin authorization**: Telegram admin commands gated by `ADMIN_IDS` whitelist
-- **No secrets committed**: `.env` excluded from git; only `.env.example` committed
-- **Input validation**: Promo codes, quantities, prices all validated server-side
-- **Audit logging**: `AdminAuditLog` table tracks payment verification, stock changes, loyalty adjustments
-- **CSRF mitigation**: Flask `secret_key` set from env; session cookies are HTTP-only
-
-### 9. Error Handling & Logging
-- `logging` module with structured handlers throughout all services
-- Specific `logger.warning()` / `logger.exception()` on all failure paths
-- No silent `except: pass` on critical business logic paths
-- Telegram notification failures log warnings but don't crash order processing
-
-### 10. Persistent Cart (Bot-Restart Safe)
-- Cart stored in database, not Telegram `context.user_data`
-- Cart state persists across bot restarts, crashes, and Telegram server interruptions
-
-### 11. Dynamic Product Variants (CMS)
-- Admin CMS allows per-variant stock management via inline buttons
-- `/setstock PROD_ID FINISH QTY` command for rapid CLI-style stock updates
-- `+5 quick-add` and `Set Exact Qty` inline buttons per variant in the product editor
-
-### 12. Automated Test Suite — 15 Tests
-```
-tests/
-├── test_cart.py              # Cart add/remove/quantity, persistence
-├── test_orders.py            # Multi-item checkout, promo discounts, stock deduction
-├── test_payments.py          # Payment lifecycle, duplicate reference prevention
-├── test_inventory.py         # Atomic deduction, negative stock prevention
-├── test_delivery_confirmation.py  # Code generation, validation, loyalty award
-├── test_referrals_loyalty.py # Self-referral, duplicate, negative balance prevention
-└── test_security.py          # Web Admin auth redirect, login validation
-```
-
-### 13. Admin Architecture
-- **Telegram Admin**: Quick actions — verify orders, ship, bulk dispatch, give loyalty points, broadcast, CRM
-- **Web Admin Portal**: Tabular order management, inventory control, audit trail viewer, shipping labels
-- **Shared service layer**: Both admin interfaces call the same business logic (no duplication)
-
-### 14. Bundle Wizard
-- Step-by-step multi-item bundle configurator (Creator Bundle, Studio Bundle)
-- Color/finish selection per bundle component with navigation (Back / Forward)
-- Bundle items resolved at runtime from `BUNDLE_ITEMS` config — no migration needed
-
-### 15. PDF Invoice & Shipping Label Generation
-- Auto-generated PDF invoice sent to customer on payment verification
-- Shipping label PDF (with delivery code) sent to admin on `/ship`
-- Both generated using `reportlab`
+### 📄 7. PDF Invoice & Shipping Label Generator
+- Auto-generates branded PDF invoices for customers upon payment verification.
+- Auto-generates dispatch shipping labels (with delivery verification codes) for fulfillment staff.
 
 ---
 
 ## 🚀 Quick Start
 
-### Prerequisites
+### 1. Prerequisites & Installation
+
+Ensure Python 3.10+ is installed on your system.
 
 ```bash
-git clone <repo-url>
-cd oxel_bot
+git clone https://github.com/ShaliMelaku/oxel-bot.git
+cd oxel-bot
 pip install -r requirements.txt
 ```
 
-### Environment Configuration
+### 2. Environment Setup
 
-Copy `.env.example` to `.env` and populate:
+Copy `.env.example` to `.env` and enter your Telegram Bot Token and Admin User ID:
 
 ```bash
 cp .env.example .env
 ```
 
-Required environment variables:
+Edit `.env`:
+```env
+BOT_TOKEN=YOUR_TELEGRAM_BOT_TOKEN_HERE
+ADMIN_USER_IDS=123456789
+DATABASE_URL=sqlite:///oxel_bot.db
+```
 
-| Variable          | Description                                         |
-|-------------------|-----------------------------------------------------|
-| `BOT_TOKEN`       | Telegram Bot Token from [@BotFather](https://t.me/BotFather) |
-| `DATABASE_URL`    | `sqlite:///oxel_bot.db` (dev) or `postgresql://...` (prod) |
-| `ADMIN_USER_IDS`  | Comma-separated Telegram User IDs for bot admins    |
-| `ADMIN_PASSWORD`  | Web Admin Portal password                           |
-| `FLASK_SECRET_KEY`| Flask session secret (generate a strong random key) |
+### 3. Initialize & Seed Database
 
-### Database Setup
+Initialize database tables, variant inventory stock, and promo codes:
 
 ```bash
-# Run Alembic migrations to initialize all tables
-python -m alembic upgrade head
-
-# Seed products, variants, and promo codes
 python database.py
 ```
 
-### Run Tests
+### 4. Run the Telegram Bot
 
-```bash
-python -m unittest discover tests
-```
-
-Expected result: `Ran 15 tests in ~2s — OK`
-
-### Start the Application
-
-**Telegram Bot:**
 ```bash
 python bot.py
 ```
 
-**Web Admin Portal** (separate terminal):
-```bash
-python web_admin.py
-```
+---
 
-Access the admin portal at: `http://localhost:5000`
+## 🗄️ Database Schema Overview
+
+| Table | Purpose |
+| ----- | ------- |
+| `users` | Customer profile, VIP tier, loyalty point ledger balance |
+| `products` | Product catalog with base pricing and details |
+| `product_variants` | Wood finishes, size options, stock levels, and price modifiers |
+| `carts` / `cart_items` | Database-backed persistent customer shopping cart |
+| `orders` / `order_items` | Multi-item orders with frozen unit pricing and delivery codes |
+| `payments` | Payment submission lifecycle & verification state |
+| `order_status_history` | Audit log of status transitions per order |
+| `referrals` | Referral relationship ledger |
+| `loyalty_transactions` | Complete points credit/debit audit trail |
+| `promo_codes` | Promotional codes with rule validation parameters |
+| `admin_audit_logs` | Admin action audit log |
 
 ---
 
-## 🐳 Docker Deployment
+## 📋 Admin Commands
 
-```bash
-# Build image
-docker build -t oxel-ecommerce-bot .
+Admin commands are available to Telegram user IDs configured in `ADMIN_USER_IDS`:
 
-# Run with environment file
-docker run -d \
-  --name oxel-bot-app \
-  -p 5000:5000 \
-  --env-file .env \
-  oxel-ecommerce-bot
-```
-
----
-
-## 🗄️ Database Models
-
-| Model                | Purpose                                              |
-|----------------------|------------------------------------------------------|
-| `User`               | Customer profile, VIP tier, loyalty balance          |
-| `Product`            | Product catalog with slug and category               |
-| `ProductVariant`     | Finish variants with individual stock quantities     |
-| `Cart` / `CartItem`  | Persistent multi-item shopping cart                  |
-| `Order`              | Multi-item order with frozen prices and delivery code|
-| `OrderItem`          | Line items with frozen unit prices                   |
-| `Payment`            | Payment lifecycle state machine                      |
-| `OrderStatusHistory` | Immutable status change audit log                    |
-| `Referral`           | Referral link with reward tracking                   |
-| `LoyaltyTransaction` | Complete points ledger (positive & negative)         |
-| `PromoCode`          | Promo code with usage limits and expiry              |
-| `AdminAuditLog`      | Admin action audit trail                             |
+| Command | Description |
+| ------- | ----------- |
+| `/admin` | Open interactive Telegram admin portal |
+| `/verify ORDER#` | Verify customer payment & issue PDF invoice |
+| `/status ORDER# STATUS` | Update order status (`confirmed`, `shipped`, `delivered`, `cancelled`) |
+| `/ship ORDER# [TRACKING]` | Mark order shipped and send delivery code to customer |
+| `/confirm_delivery ORDER# CODE` | Fulfill delivery using customer confirmation code |
+| `/shipping_label ORDER#` | Generate printable PDF shipping label |
+| `/setstock PROD_ID FINISH QTY` | Update variant stock inventory level |
+| `/givepoints USER_ID POINTS [reason]` | Award loyalty points to a user |
+| `/userinfo USER_ID` | View detailed customer profile & metrics |
+| `/broadcast MSG` | Broadcast announcement message to all users |
+| `/broadcast_vip MSG` | Broadcast announcement to VIP users (Silver/Gold) |
+| `/addpromo CODE PERCENT` | Create a new promotional discount code |
 
 ---
 
-## 🛡️ Security Notes
+## 🛡️ Security & Privacy
 
-- **Never commit `.env`** — all secrets via environment variables
-- **Rotate Bot Token** if ever exposed (via @BotFather)
-- **PostgreSQL Production**: Use SSL (`?sslmode=require` in `DATABASE_URL`)
-- **Flask Secret Key**: Use a cryptographically random value (e.g. `python -c "import secrets; print(secrets.token_hex(32))"`)
-
-### Database Backup (PostgreSQL Production)
-```bash
-pg_dump -U postgres -d oxel_db > backup_$(date +%Y%m%d).sql
-```
-
----
-
-## 📋 Admin Commands Reference
-
-| Command                              | Description                                 |
-|--------------------------------------|---------------------------------------------|
-| `/admin`                             | Open admin panel                            |
-| `/verify ORDER#`                     | Verify payment & generate PDF invoice       |
-| `/status ORDER# STATUS`              | Update order status                         |
-| `/ship ORDER# [TRACKING]`            | Mark shipped & send delivery code           |
-| `/bulkship OXEL-1,OXEL-2`           | Bulk mark as shipped                        |
-| `/confirm_delivery ORDER# CODE`      | Confirm delivery with customer code         |
-| `/shipping_label ORDER#`             | Generate & send shipping label PDF          |
-| `/setstock PROD_ID FINISH QTY`       | Set variant stock quantity                  |
-| `/givepoints USER_ID POINTS [reason]`| Award loyalty points (with audit log)       |
-| `/userinfo USER_ID`                  | View customer profile                       |
-| `/broadcast MSG`                     | Send message to all users                   |
-| `/broadcast_vip MSG`                 | Send to Gold/Silver VIP users only          |
-| `/addproduct Name \| Cat \| Price \| Desc` | Add new product                       |
-| `/addpromo CODE PERCENT`             | Create promo code                           |
+- **Secret Isolation**: No bot tokens or database URIs are committed to version control.
+- **Fail-Fast Startup**: Bot validates environment variables on boot and halts if secrets are missing.
+- **Strict Authorization**: Admin actions gated by Telegram User ID whitelist check.
+- **Concurrency Protection**: SQLite WAL mode and SQL row locking prevent database contention and stock race conditions.
 
 ---
 
 ## 📄 License
 
-Proprietary — Oxel E-Commerce © 2026
+Proprietary — Oxel E-Commerce Platform © 2026
