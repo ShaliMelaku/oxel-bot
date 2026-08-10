@@ -55,7 +55,8 @@ create_enhanced_assets.py
 scratch/
 
 # ── Project-specific local files ─────────────────────────────────────────────
-data/
+data/*
+!data/products.json
 .plan
 task.md
 Dockerfile
