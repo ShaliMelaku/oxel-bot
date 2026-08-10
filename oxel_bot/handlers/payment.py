@@ -110,65 +110,25 @@ async def process_receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def process_reference(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    import re
+    from utils.sms_parser import parse_sms_payment_details
     raw_input = update.message.text.strip()
     payment_method = str(context.user_data.get('payment_method', 'telebirr')).lower()
-    extracted_ref = None
 
-    if 'telebirr' in payment_method:
-        # 1. Try extracting from full SMS message format: "transaction number is DE84OYCUWM"
-        m1 = re.search(r'transaction\s+number\s+is\s+([A-Za-z0-9]+)', raw_input, re.IGNORECASE)
-        if m1:
-            extracted_ref = m1.group(1).upper()
-        else:
-            # 2. Try extracting from Telebirr receipt URL: "/receipt/DE84OYCUWM"
-            m2 = re.search(r'receipt/([A-Za-z0-9]+)', raw_input, re.IGNORECASE)
-            if m2:
-                extracted_ref = m2.group(1).upper()
-            else:
-                # 3. Direct alphanumeric code check (6–20 characters, e.g. DE84OYCUWM or 12345678)
-                m3 = re.search(r'\b[A-Za-z0-9]{6,20}\b', raw_input)
-                if m3 and len(raw_input) < 30:
-                    extracted_ref = raw_input.upper()
+    # Parse and validate SMS payment text / code & check anti-duplication database records
+    parsed = parse_sms_payment_details(raw_input, payment_method)
+    if not parsed['valid']:
+        await update.message.reply_text(
+            f"❌ <b>Payment Validation Error</b>\n\n"
+            f"{parsed['error']}\n\n"
+            f"Please double check and paste your SMS or transaction code again:",
+            parse_mode="HTML"
+        )
+        return  # Stay in awaiting_reference state so customer can retry
 
-        if not extracted_ref:
-            await update.message.reply_text(
-                "❌ <b>Invalid TeleBirr Reference or Message</b>\n\n"
-                "You can paste your full Telebirr SMS confirmation, or type your transaction code (e.g., <code>DE84OYCUWM</code>).\n\n"
-                "Please paste your message or enter your reference number:",
-                parse_mode="HTML"
-            )
-            return
-
-    elif 'cbe' in payment_method:
-        # 1. Try extracting from CBE receipt URL: "Mbreciept.cbe.com.et/FT26128BTCZH-70943188"
-        m1 = re.search(r'Mbreciept\.cbe\.com\.et/([A-Za-z0-9\-]+)', raw_input, re.IGNORECASE)
-        if m1:
-            extracted_ref = m1.group(1).upper()
-        else:
-            # 2. Try extracting FT transaction code (e.g. FT26128BTCZH)
-            m2 = re.search(r'\b(FT[A-Za-z0-9\-]+)\b', raw_input, re.IGNORECASE)
-            if m2:
-                extracted_ref = m2.group(1).upper()
-            else:
-                # 3. Direct alphanumeric code check (6–35 characters)
-                if len(raw_input) < 40 and re.match(r'^[A-Za-z0-9\-]{6,35}$', raw_input):
-                    extracted_ref = raw_input.upper()
-
-        if not extracted_ref:
-            await update.message.reply_text(
-                "❌ <b>Invalid CBE Reference or Message</b>\n\n"
-                "You can paste your full CBE SMS notification, or type your transaction code (e.g., <code>FT26128BTCZH</code>).\n\n"
-                "Please paste your message or enter your reference number:",
-                parse_mode="HTML"
-            )
-            return
-    else:
-        extracted_ref = raw_input[:50]
-
-    context.user_data['payment_reference'] = extracted_ref
-    context.user_data['raw_payment_sms'] = raw_input
-    context.user_data['awaiting_reference'] = False
+    extracted_ref = parsed['transaction_ref']
+    extracted_amount = parsed.get('amount')
+    extracted_recipient = parsed.get('recipient')
+    receipt_url = parsed.get('receipt_url')
 
     cart_total = context.user_data.get('cart_total', 0)
     shipping_fee = context.user_data.get('shipping_fee', 200)
@@ -179,18 +139,35 @@ async def process_reference(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lat = context.user_data.get('location_lat')
     lon = context.user_data.get('location_lon')
 
+    # Transferred amount mismatch check
+    amount_warning = ""
+    if extracted_amount is not None and extracted_amount < cart_total:
+        amount_warning = (
+            f"\n⚠️ <b>Warning: Transferred amount ({extracted_amount:,.2f} ETB) is LESS than Order Total ({cart_total:,} ETB)!</b>"
+        )
+
+    context.user_data['payment_reference'] = extracted_ref
+    context.user_data['raw_payment_sms'] = raw_input
+    context.user_data['parsed_payment'] = parsed
+    context.user_data['awaiting_reference'] = False
+
     from utils.geo import calculate_delivery_fee
     _, dist_km = calculate_delivery_fee(lat, lon)
     dist_info = f" ({dist_km:.1f} km from Megenagna)" if dist_km > 0 else " (Standard Rate)"
     discount_line = f"\n🎟️ <b>Promo Discount:</b> -{discount:,} ETB" if discount > 0 else ""
 
+    recip_line = f"\n👤 <b>Sent To:</b> <code>{html.escape(extracted_recipient)}</code>" if extracted_recipient else ""
+    amt_line = f"\n💰 <b>Transferred Amount:</b> {extracted_amount:,.2f} ETB" if extracted_amount is not None else ""
+    url_line = f"\n🔗 <b>Receipt Link:</b> <a href='{receipt_url}'>View Receipt</a>" if receipt_url else ""
+
     preview_text = (
         f"📋 <b>PLEASE CONFIRM YOUR PAYMENT DETAILS</b>\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
         f"💳 <b>Payment Method:</b> {payment_method.upper()}\n"
-        f"🔢 <b>Extracted Ref Code:</b> <code>{html.escape(extracted_ref)}</code>\n"
+        f"🔢 <b>Trans. Ref Code:</b> <code>{html.escape(extracted_ref)}</code>"
+        f"{recip_line}{amt_line}{url_line}\n"
         f"🚚 <b>Delivery Fee:</b> {shipping_fee:,} ETB <i>{dist_info}</i>{discount_line}\n"
-        f"💰 <b>Total Amount Due:</b> <b>{cart_total:,} ETB</b>\n\n"
+        f"💰 <b>Total Amount Due:</b> <b>{cart_total:,} ETB</b>{amount_warning}\n\n"
         f"📞 <b>Contact Phone:</b> <code>{html.escape(phone)}</code>\n"
         f"📍 <b>Delivery Address:</b> {html.escape(address)}\n"
         f"━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -276,7 +253,7 @@ async def place_order(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Clear session
         for key in ['cart', 'cart_total', 'shipping_address', 'payment_method',
                     'payment_reference', 'receipt_file_id', 'discount_amount',
-                    'applied_promo', 'location_lat', 'location_lon']:
+                    'applied_promo', 'location_lat', 'location_lon', 'parsed_payment']:
             context.user_data.pop(key, None)
 
         itemized_lines = [
@@ -341,9 +318,19 @@ async def place_order(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 parse_mode="HTML"
             )
 
-        # Notify store admins
+        # Notify store admins with full structured SMS & order details
+        parsed = context.user_data.get('parsed_payment', {})
         raw_sms = context.user_data.get('raw_payment_sms')
-        sms_line = f"\n💬 <b>Shared SMS Details:</b>\n<i>{html.escape(raw_sms)}</i>\n" if raw_sms else "\n"
+
+        ref_code = parsed.get('transaction_ref') or reference
+        recipient_info = parsed.get('recipient')
+        parsed_amt = parsed.get('amount')
+        rcpt_url = parsed.get('receipt_url')
+
+        sms_line = f"\n💬 <b>Pasted SMS Text:</b>\n<i>{html.escape(raw_sms)}</i>\n" if raw_sms else ""
+        recip_admin = f"\n👤 <b>Sent To:</b> <code>{html.escape(recipient_info)}</code>" if recipient_info else ""
+        amt_admin = f"\n💰 <b>Transferred Amount:</b> {parsed_amt:,.2f} ETB (Order Total: {order.total_price:,} ETB)" if parsed_amt is not None else ""
+        url_admin = f"\n🔗 <b>Receipt Link:</b> <a href='{rcpt_url}'>{rcpt_url}</a>" if rcpt_url else ""
 
         admin_items = "\n".join([
             f"  • {item.quantity}× {html.escape(item.product_name)} ({html.escape(item.finish_variant or 'Standard')})"
@@ -359,11 +346,13 @@ async def place_order(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"🆔 Telegram ID: <code>{user_id}</code>\n"
             f"📞 Contact Phone: <code>{html.escape(order.phone or phone or 'N/A')}</code>\n"
             f"🔢 Order Number: <code>{html.escape(order.order_number)}</code>\n"
-            f"📦 Items:\n{admin_items}\n"
-            f"💰 Total: {order.total_price:,} ETB\n"
-            f"💳 Payment: {html.escape(payment_method.upper())}\n"
-            f"📝 Ref / Code: <code>{html.escape(reference or 'N/A')}</code>{sms_line}"
+            f"📦 Items:\n{admin_items}\n\n"
+            f"💳 Payment Method: {html.escape(payment_method.upper())}\n"
+            f"📝 Trans. Ref Code: <code>{html.escape(ref_code or 'N/A')}</code>"
+            f"{recip_admin}{amt_admin}{url_admin}\n\n"
+            f"💰 Grand Total: <b>{order.total_price:,} ETB</b>\n"
             f"📍 Address / GPS: {addr_display}\n"
+            f"{sms_line}"
             f"━━━━━━━━━━━━━━━━━━━━"
         )
 
