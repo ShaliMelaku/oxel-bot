@@ -52,9 +52,17 @@ async def show_category(update: Update, context: ContextTypes.DEFAULT_TYPE, cate
             msg_title = f"📦 <b>{cat_name}s</b>"
 
         if not products:
-            msg_text = "📭 No products available in this section right now."
-            markup = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Back to Catalog", callback_data="catalog")]])
-            await safe_edit_text(update, context, msg_text, markup, parse_mode="HTML")
+            msg_text = (
+                "🙏 <b>We're Currently Restocking!</b>\n\n"
+                "Sorry, all items in this section are currently sold out due to high demand. Our craftsmen are actively hand-carving new inventory!\n\n"
+                "💬 <b>Need a custom piece or pre-order?</b>\n"
+                "Tap below to chat directly with our team — we'll prioritize your request!"
+            )
+            keyboard = [
+                [InlineKeyboardButton("💬 Contact Support", callback_data="contact_support")],
+                [InlineKeyboardButton("🔙 Back to Catalog", callback_data="catalog")]
+            ]
+            await safe_edit_text(update, context, msg_text, InlineKeyboardMarkup(keyboard), parse_mode="HTML")
             return
 
         keyboard = []
@@ -136,7 +144,7 @@ async def show_product_detail(
         effective_unit_price = product.price + price_mod
         current_stock = sel_variant.stock_quantity
         if current_stock == 0:
-            stock_badge = "❌ <b>OUT OF STOCK</b>"
+            stock_badge = "🔴 <b>TEMPORARILY SOLD OUT</b> (Restocking batch)"
         elif current_stock < 4:
             stock_badge = f"⚡ <b>LOW STOCK! Only {current_stock} left!</b>"
         else:

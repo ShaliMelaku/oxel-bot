@@ -348,7 +348,11 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await add_to_cart(update, context, product_id, variant_id=variant_id)
         await checkout(update, context)
     elif data.startswith('notify_stock_'):
-        await query.answer("🔔 You will be notified as soon as this variation is back in stock!", show_alert=True)
+        await query.answer(
+            "🙏 We're so sorry this piece is temporarily sold out!\n\n"
+            "🔔 You're on our priority list! We will alert you the moment our craftsmen restock this finish.",
+            show_alert=True
+        )
     elif data.startswith('inc_'):
         index = int(data.replace('inc_', ''))
         await adjust_quantity(update, context, 'inc', index)
