@@ -111,35 +111,62 @@ async def process_receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def process_reference(update: Update, context: ContextTypes.DEFAULT_TYPE):
     import re
-    reference = update.message.text.strip()
-    payment_method = context.user_data.get('payment_method', 'telebirr')
+    raw_input = update.message.text.strip()
+    payment_method = str(context.user_data.get('payment_method', 'telebirr')).lower()
+    extracted_ref = None
 
-    # Validate reference format by payment method
-    if payment_method in ('telebirr', 'TeleBirr', 'Telebirr'):
-        # TeleBirr transaction IDs are 8–15 digit numbers
-        if not re.match(r'^\d{8,15}$', reference):
+    if 'telebirr' in payment_method:
+        # 1. Try extracting from full SMS message format: "transaction number is DE84OYCUWM"
+        m1 = re.search(r'transaction\s+number\s+is\s+([A-Za-z0-9]+)', raw_input, re.IGNORECASE)
+        if m1:
+            extracted_ref = m1.group(1).upper()
+        else:
+            # 2. Try extracting from Telebirr receipt URL: "/receipt/DE84OYCUWM"
+            m2 = re.search(r'receipt/([A-Za-z0-9]+)', raw_input, re.IGNORECASE)
+            if m2:
+                extracted_ref = m2.group(1).upper()
+            else:
+                # 3. Direct alphanumeric code check (6–20 characters, e.g. DE84OYCUWM or 12345678)
+                m3 = re.search(r'\b[A-Za-z0-9]{6,20}\b', raw_input)
+                if m3 and len(raw_input) < 30:
+                    extracted_ref = raw_input.upper()
+
+        if not extracted_ref:
             await update.message.reply_text(
-                "❌ <b>Invalid TeleBirr Reference</b>\n\n"
-                "TeleBirr transaction numbers are <b>8–15 digits</b> (numbers only).\n"
-                "Example: <code>1234567890</code>\n\n"
-                "Please re-enter your transaction reference number:",
+                "❌ <b>Invalid TeleBirr Reference or Message</b>\n\n"
+                "You can paste your full Telebirr SMS confirmation, or type your transaction code (e.g., <code>DE84OYCUWM</code>).\n\n"
+                "Please paste your message or enter your reference number:",
                 parse_mode="HTML"
             )
-            return  # keep awaiting_reference = True so user can retry
+            return
 
-    elif payment_method in ('cbe', 'CBE'):
-        # CBE transaction references are 6–25 alphanumeric characters
-        if not re.match(r'^[A-Za-z0-9]{6,25}$', reference):
+    elif 'cbe' in payment_method:
+        # 1. Try extracting from CBE receipt URL: "Mbreciept.cbe.com.et/FT26128BTCZH-70943188"
+        m1 = re.search(r'Mbreciept\.cbe\.com\.et/([A-Za-z0-9\-]+)', raw_input, re.IGNORECASE)
+        if m1:
+            extracted_ref = m1.group(1).upper()
+        else:
+            # 2. Try extracting FT transaction code (e.g. FT26128BTCZH)
+            m2 = re.search(r'\b(FT[A-Za-z0-9\-]+)\b', raw_input, re.IGNORECASE)
+            if m2:
+                extracted_ref = m2.group(1).upper()
+            else:
+                # 3. Direct alphanumeric code check (6–35 characters)
+                if len(raw_input) < 40 and re.match(r'^[A-Za-z0-9\-]{6,35}$', raw_input):
+                    extracted_ref = raw_input.upper()
+
+        if not extracted_ref:
             await update.message.reply_text(
-                "❌ <b>Invalid CBE Reference</b>\n\n"
-                "CBE transaction references are <b>6–25 alphanumeric characters</b>.\n"
-                "Example: <code>FT12345678</code>\n\n"
-                "Please re-enter your transaction reference number:",
+                "❌ <b>Invalid CBE Reference or Message</b>\n\n"
+                "You can paste your full CBE SMS notification, or type your transaction code (e.g., <code>FT26128BTCZH</code>).\n\n"
+                "Please paste your message or enter your reference number:",
                 parse_mode="HTML"
             )
-            return  # keep awaiting_reference = True so user can retry
+            return
+    else:
+        extracted_ref = raw_input[:50]
 
-    context.user_data['payment_reference'] = reference
+    context.user_data['payment_reference'] = extracted_ref
     context.user_data['awaiting_reference'] = False
     await place_order(update, context)
 
