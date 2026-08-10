@@ -418,7 +418,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Location handler — saves GPS address then collects phone (same flow as typed address)
     if update.message.location:
         loc = update.message.location
-        address_str = f"GPS: Lat {loc.latitude:.5f}, Lon {loc.longitude:.5f}"
+        maps_url = f"https://maps.google.com/?q={loc.latitude:.6f},{loc.longitude:.6f}"
+        address_str = f"📍 Google Maps: {maps_url}"
         context.user_data['shipping_address'] = address_str
         context.user_data['location_lat'] = loc.latitude
         context.user_data['location_lon'] = loc.longitude
@@ -441,7 +442,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         from utils.keyboards import phone_input_reply_keyboard
         await update.message.reply_text(
-            f"📍 <b>Location Saved!</b>\n<code>{address_str}</code>\n\n"
+            f"📍 <b>Location Saved!</b>\n<a href='{maps_url}'>🗺️ Tap to Open in Google Maps</a>\n\n"
             f"📞 <b>Contact Phone Required</b>\n"
             f"Our courier team needs your number to reach you on delivery.\n\n"
             f"👇 Share your contact, use saved number, or type a new one:",
@@ -489,6 +490,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if product_id:
                 await cms_edit_product(update, context, product_id)
             return
+
+    # Contact handler (Telegram shared contact card)
+    if update.message.contact:
+        await process_phone(update, context)
+        return
 
     text = update.message.text
     if not text:

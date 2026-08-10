@@ -14,6 +14,19 @@ from services.cart_service import get_cart_summary, clear_cart
 logger = logging.getLogger(__name__)
 
 
+def format_address_html(address: str, lat: float = None, lon: float = None) -> str:
+    """Format address for HTML telegram messages with clickable Google Maps links."""
+    if lat and lon:
+        return f"<a href='https://maps.google.com/?q={lat:.6f},{lon:.6f}'>🗺️ Open in Google Maps</a>"
+    if address and "https://maps.google.com" in address:
+        import re
+        match = re.search(r'(https://maps\.google\.com/\S+)', address)
+        if match:
+            url = match.group(1)
+            return f"<a href='{url}'>🗺️ Open in Google Maps</a>"
+    return html.escape(address or "N/A")
+
+
 async def payment_instructions(update: Update, context: ContextTypes.DEFAULT_TYPE, method: str):
     """Show payment details for selected payment method."""
     query = update.callback_query
@@ -247,6 +260,7 @@ async def place_order(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ])
         cust_name = html.escape(update.effective_user.first_name or '')
         cust_handle = html.escape(update.effective_user.username or 'N/A')
+        addr_display = format_address_html(address, lat, lon)
         admin_text = (
             f"🔔 <b>NEW ORDER RECEIVED!</b>\n"
             f"━━━━━━━━━━━━━━━━━━━━\n"
@@ -258,7 +272,7 @@ async def place_order(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"💰 Total: {order.total_price:,} ETB\n"
             f"💳 Payment: {html.escape(payment_method.upper())}\n"
             f"📝 Ref: <code>{html.escape(reference or 'N/A')}</code>\n"
-            f"📍 Address: {html.escape(address)}\n"
+            f"📍 Address / GPS: {addr_display}\n"
             f"━━━━━━━━━━━━━━━━━━━━"
         )
 
