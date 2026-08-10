@@ -128,7 +128,11 @@ async def checkout(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def process_address(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Receive typed/shared address, show delivery slot picker."""
-    address = update.message.text
+    # Use override if set by saved-address button handler (update.message.text is read-only in PTB v20)
+    address = context.user_data.pop('_address_override', None) or (update.message.text if update.message else None)
+    if not address:
+        await update.message.reply_text("⚠️ Could not read address. Please type your address manually.")
+        return
     context.user_data['shipping_address'] = address
     context.user_data['awaiting_address'] = False
 

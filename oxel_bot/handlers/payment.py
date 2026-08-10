@@ -97,7 +97,35 @@ async def process_receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def process_reference(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    import re
     reference = update.message.text.strip()
+    payment_method = context.user_data.get('payment_method', 'telebirr')
+
+    # Validate reference format by payment method
+    if payment_method in ('telebirr', 'TeleBirr', 'Telebirr'):
+        # TeleBirr transaction IDs are 8–15 digit numbers
+        if not re.match(r'^\d{8,15}$', reference):
+            await update.message.reply_text(
+                "❌ <b>Invalid TeleBirr Reference</b>\n\n"
+                "TeleBirr transaction numbers are <b>8–15 digits</b> (numbers only).\n"
+                "Example: <code>1234567890</code>\n\n"
+                "Please re-enter your transaction reference number:",
+                parse_mode="HTML"
+            )
+            return  # keep awaiting_reference = True so user can retry
+
+    elif payment_method in ('cbe', 'CBE'):
+        # CBE transaction references are 6–25 alphanumeric characters
+        if not re.match(r'^[A-Za-z0-9]{6,25}$', reference):
+            await update.message.reply_text(
+                "❌ <b>Invalid CBE Reference</b>\n\n"
+                "CBE transaction references are <b>6–25 alphanumeric characters</b>.\n"
+                "Example: <code>FT12345678</code>\n\n"
+                "Please re-enter your transaction reference number:",
+                parse_mode="HTML"
+            )
+            return  # keep awaiting_reference = True so user can retry
+
     context.user_data['payment_reference'] = reference
     context.user_data['awaiting_reference'] = False
     await place_order(update, context)

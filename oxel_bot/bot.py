@@ -415,22 +415,40 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await broadcast_stage_message(update, context)
         return
 
-    # Location handler
+    # Location handler — saves GPS address then collects phone (same flow as typed address)
     if update.message.location:
         loc = update.message.location
-        address_str = f"GPS Coordinates: Lat {loc.latitude:.5f}, Lon {loc.longitude:.5f}"
+        address_str = f"GPS: Lat {loc.latitude:.5f}, Lon {loc.longitude:.5f}"
         context.user_data['shipping_address'] = address_str
         context.user_data['location_lat'] = loc.latitude
         context.user_data['location_lon'] = loc.longitude
+        context.user_data['awaiting_address'] = False
 
+        # Save location to DB and collect phone number next
+        saved_phone = None
+        db = SessionLocal()
+        try:
+            from models.user import sync_telegram_user
+            u_rec = sync_telegram_user(db, update.effective_user)
+            if u_rec:
+                u_rec.saved_address_1 = address_str
+                saved_phone = u_rec.phone
+                db.commit()
+        except Exception:
+            pass
+        finally:
+            db.close()
+
+        from utils.keyboards import phone_input_reply_keyboard
         await update.message.reply_text(
-            f"📍 *Location Saved!*\n\n{address_str}\n\n✅ Is this location correct?",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("✅ Confirm Address", callback_data="confirm_address")],
-                [InlineKeyboardButton("✏️ Re-enter Address", callback_data="edit_address")]
-            ]),
-            parse_mode="Markdown"
+            f"📍 <b>Location Saved!</b>\n<code>{address_str}</code>\n\n"
+            f"📞 <b>Contact Phone Required</b>\n"
+            f"Our courier team needs your number to reach you on delivery.\n\n"
+            f"👇 Share your contact, use saved number, or type a new one:",
+            reply_markup=phone_input_reply_keyboard(saved_phone),
+            parse_mode="HTML"
         )
+        context.user_data['awaiting_phone'] = True
         return
 
     # Photo handler (receipt or product/variant photo edit)
@@ -893,7 +911,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Cancel Checkout Action
     if text_clean == "❌ Cancel Checkout":
         context.user_data['awaiting_address'] = False
-        from utils.keyboards import persistent_reply_keyboard, main_menu_keyboard
+        context.user_data['awaiting_phone'] = False
+        context.user_data.pop('_address_override', None)
+        from utils.keyboards import persistent_reply_keyboard
         await update.message.reply_text(
             "❌ <b>Checkout Cancelled.</b> You can continue browsing or return to your cart anytime.",
             reply_markup=persistent_reply_keyboard(),
@@ -956,6 +976,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if context.user_data.get('awaiting_address'):
         user_id = update.effective_user.id
         if text_clean.startswith("🏠 Primary:") or text_clean.startswith("🏠"):
+            # Fetch full saved address — update.message.text is read-only in PTB v20
+            # so we store in context for process_address to pick up
             addr = context.user_data.get('saved_addr1_full')
             if not addr:
                 db = SessionLocal()
@@ -966,7 +988,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 finally:
                     db.close()
             if addr:
-                update.message.text = addr
+                context.user_data['_address_override'] = addr
 
         elif text_clean.startswith("🏢 Secondary:") or text_clean.startswith("🏢"):
             addr = context.user_data.get('saved_addr2_full')
@@ -979,7 +1001,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 finally:
                     db.close()
             if addr:
-                update.message.text = addr
+                context.user_data['_address_override'] = addr
 
         await process_address(update, context)
         return
@@ -1174,6 +1196,7 @@ def main():
 
     # Message handlers — order matters: specific types first
     app.add_handler(MessageHandler(filters.LOCATION, handle_message))
+    app.add_handler(MessageHandler(filters.CONTACT, handle_message))  # phone sharing at checkout
     app.add_handler(MessageHandler(filters.PHOTO, handle_message))
     app.add_handler(MessageHandler(filters.VIDEO, handle_message))
     app.add_handler(MessageHandler(filters.AUDIO, handle_message))

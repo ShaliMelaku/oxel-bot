@@ -81,9 +81,10 @@ def create_order_from_cart(
         else:
             logger.warning(f"Promo code '{promo_code}' invalid for user {user_id}: {promo_res['message']}")
 
-    engraving_fee = 150 if engraving_text else 0
-    shipping_fee = 100 if shipping_address else 0
-    total_price = max(0, subtotal - discount_amount + engraving_fee + shipping_fee)
+    # Fees are included in product prices — no hidden charges added at order time
+    engraving_fee = 0
+    shipping_fee = 0
+    total_price = max(0, subtotal - discount_amount)
 
     # 1. Atomically deduct stock for all items
     deducted_items = []
