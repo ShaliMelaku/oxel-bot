@@ -255,8 +255,10 @@ async def admin_manage_order(update: Update, context: ContextTypes.DEFAULT_TYPE,
         code_str = f"\n🔐 <b>Delivery Code:</b> <code>{html.escape(order.delivery_code)}</code>" if order.delivery_code else ""
         trk_str = f"\n🚚 <b>Tracking #:</b> <code>{html.escape(order.tracking_number)}</code>" if order.tracking_number else ""
         promo_str = f"\n🎟️ <b>Promo Code:</b> <code>{html.escape(order.promo_code)}</code> (-{order.discount_amount:,} ETB)" if order.promo_code else ""
+        shipping_str = f"\n🚚 <b>Delivery Fee:</b> {order.shipping_fee:,} ETB" if order.shipping_fee else ""
+        subtotal_str = f"\n🧾 <b>Subtotal:</b> {order.subtotal:,} ETB" if order.subtotal is not None else ""
         pts_tag = " 🏅 <i>Paid with Loyalty Points — auto-confirmed</i>" if order.payment_method == 'LOYALTY_POINTS' else ""
-
+ 
         text = (
             f"⚙️ <b>ADMIN ORDER MANAGEMENT</b>\n"
             f"━━━━━━━━━━━━━━━━━━━━\n"
@@ -268,7 +270,7 @@ async def admin_manage_order(update: Update, context: ContextTypes.DEFAULT_TYPE,
             f"📍 <b>Address:</b> {html.escape(order.shipping_address or 'N/A')}\n"
             f"🕔 <b>Slot:</b> {html.escape(order.delivery_slot or 'Morning')}\n\n"
             f"📦 <b>Order Items:</b>\n{items_text}\n"
-            f"━━━━━━━━━━━━━━━━━━━━{promo_str}\n"
+            f"━━━━━━━━━━━━━━━━━━━━{subtotal_str}{shipping_str}{promo_str}\n"
             f"💰 <b>Grand Total:</b> {order.total_price:,} ETB\n"
             f"💳 <b>Payment:</b> {html.escape((order.payment_method or 'N/A').upper())}\n"
             f"📝 <b>Ref:</b> <code>{html.escape(order.payment_reference or 'N/A')}</code>\n\n"
@@ -460,13 +462,14 @@ async def admin_pending(update: Update, context: ContextTypes.DEFAULT_TYPE):
             full_name = html.escape(f"{user.first_name or ''} {user.last_name or ''}".strip()) if user else "N/A"
             phone = html.escape(user.phone if user and user.phone else "N/A")
             promo_line = f"\n🎟️ Promo: <code>{html.escape(order.promo_code)}</code> (-{order.discount_amount:,} ETB)" if order.promo_code else ""
+            shipping_line = f"\n🚚 Shipping: <b>{order.shipping_fee:,} ETB</b>" if order.shipping_fee else ""
             slot_line = f"\n🚚 Slot: <i>{html.escape(order.delivery_slot or 'Morning')}</i>"
             date_str = order.created_at.strftime('%b %d, %Y — %I:%M %p')
-
+ 
             map_line = ""
             if order.latitude and order.longitude:
                 map_line = f'\n🗺️ <a href="https://maps.google.com/?q={order.latitude},{order.longitude}">View on Map</a>'
-
+ 
             if order.items:
                 items_text = ""
                 for item in order.items:
@@ -475,7 +478,7 @@ async def admin_pending(update: Update, context: ContextTypes.DEFAULT_TYPE):
             else:
                 product = db.query(Product).filter(Product.id == order.product_id).first()
                 items_text = f"   <b>{html.escape(product.name if product else 'N/A')}</b> — {html.escape(order.finish_variant or 'Standard')} x{order.quantity} · {order.total_price:,} ETB\n"
-
+ 
             payment_ref = "N/A"
             receipt_file_id = None
             if order.payments:
@@ -494,7 +497,7 @@ async def admin_pending(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"👤 <b>Customer:</b> {full_name} ({username})\n"
                 f"📞 <b>Phone:</b> {phone}\n\n"
                 f"📦 <b>Items Ordered:</b>\n{items_text}"
-                f"   Total: <b>{order.total_price:,} ETB</b>{promo_line}{slot_line}\n\n"
+                f"   Total: <b>{order.total_price:,} ETB</b>{shipping_line}{promo_line}{slot_line}\n\n"
                 f"💳 <b>Payment:</b> {html.escape((order.payment_method or 'N/A').upper())}\n"
                 f"   Reference: <code>{html.escape(str(payment_ref))}</code>\n\n"
                 f"📍 <b>Delivery Address:</b>\n"

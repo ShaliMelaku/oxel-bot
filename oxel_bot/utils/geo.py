@@ -26,8 +26,5 @@ def calculate_delivery_fee(lat: float = None, lon: float = None) -> tuple[int, f
         return 200, 0.0  # Default fee for manual address without GPS
 
     dist_km = calculate_distance_km(lat, lon)
-    if dist_km <= 0:
-        return 200, 0.0
-
-    fee = max(200, math.ceil(dist_km) * 30)
+    fee = max(30, math.ceil(dist_km) * 30)
     return fee, dist_km

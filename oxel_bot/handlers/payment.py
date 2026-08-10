@@ -361,7 +361,9 @@ async def place_order(update: Update, context: ContextTypes.DEFAULT_TYPE):
         recip_admin = f"\n👤 <b>Sent To:</b> <code>{html.escape(recipient_info)}</code>" if recipient_info else ""
         amt_admin = f"\n💰 <b>Transferred Amount:</b> {parsed_amt:,.2f} ETB (Order Total: {order.total_price:,} ETB)" if parsed_amt is not None else ""
         url_admin = f"\n🔗 <b>Receipt Link:</b> <a href='{rcpt_url}'>{rcpt_url}</a>" if rcpt_url else ""
-
+        shipping_admin = f"\n🚚 <b>Delivery Fee:</b> {order.shipping_fee:,} ETB" if order.shipping_fee else ""
+        promo_admin = f"\n🎟️ <b>Discount:</b> -{order.discount_amount:,} ETB" if order.discount_amount else ""
+ 
         admin_items = "\n".join([
             f"  • {item.quantity}× {html.escape(item.product_name)} ({html.escape(item.finish_variant or 'Standard')})"
             for item in order.items
@@ -380,7 +382,7 @@ async def place_order(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"💳 Payment Method: {html.escape(payment_method.upper())}\n"
             f"📝 Trans. Ref Code: <code>{html.escape(ref_code or 'N/A')}</code>"
             f"{recip_admin}{amt_admin}{url_admin}\n\n"
-            f"💰 Grand Total: <b>{order.total_price:,} ETB</b>\n"
+            f"💰 Grand Total: <b>{order.total_price:,} ETB</b>{shipping_admin}{promo_admin}\n"
             f"📍 Address / GPS: {addr_display}\n"
             f"{sms_line}"
             f"━━━━━━━━━━━━━━━━━━━━"
