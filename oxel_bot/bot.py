@@ -19,7 +19,7 @@ from handlers.cart import add_to_cart, view_cart, update_cart_handler, adjust_qu
 from handlers.checkout import checkout, process_address, process_phone, confirm_address
 from handlers.payment import (
     payment_instructions, upload_receipt, process_receipt,
-    process_reference, place_order, pay_with_points_handler
+    process_reference, place_order, pay_with_points_handler, reenter_payment_info_handler
 )
 from handlers.tracking import track_order, process_tracking, show_order_status, my_orders
 from handlers.admin import (
@@ -166,13 +166,17 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == 'upload_receipt':
         await upload_receipt(update, context)
 
-    # Payment methods
+    # Payment methods & confirmation
     elif data == 'pay_telebirr':
         await payment_instructions(update, context, 'telebirr')
     elif data == 'pay_cbe':
         await payment_instructions(update, context, 'cbe')
     elif data == 'pay_points':
         await pay_with_points_handler(update, context)
+    elif data == 'confirm_submit_order':
+        await place_order(update, context)
+    elif data == 'reenter_payment_info':
+        await reenter_payment_info_handler(update, context)
 
     # Admin Dashboard & Inventory & Product CMS
     elif data == 'admin_panel':

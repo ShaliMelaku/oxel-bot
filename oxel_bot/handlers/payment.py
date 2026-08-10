@@ -167,8 +167,49 @@ async def process_reference(update: Update, context: ContextTypes.DEFAULT_TYPE):
         extracted_ref = raw_input[:50]
 
     context.user_data['payment_reference'] = extracted_ref
+    context.user_data['raw_payment_sms'] = raw_input
     context.user_data['awaiting_reference'] = False
-    await place_order(update, context)
+
+    cart_total = context.user_data.get('cart_total', 0)
+    phone = context.user_data.get('shipping_phone', 'Not set')
+    address = context.user_data.get('shipping_address', 'Not set')
+
+    preview_text = (
+        f"📋 <b>PLEASE CONFIRM YOUR PAYMENT DETAILS</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"💳 <b>Payment Method:</b> {payment_method.upper()}\n"
+        f"🔢 <b>Extracted Ref Code:</b> <code>{html.escape(extracted_ref)}</code>\n"
+        f"💰 <b>Amount Due:</b> {cart_total:,} ETB\n"
+        f"📞 <b>Contact Phone:</b> <code>{html.escape(phone)}</code>\n"
+        f"📍 <b>Delivery Address:</b> {html.escape(address)}\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"<i>Please verify your payment information above. Tap <b>Confirm &amp; Submit Order</b> to submit your order to our team for verification.</i>"
+    )
+
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("✅ Confirm & Submit Order", callback_data="confirm_submit_order")],
+        [InlineKeyboardButton("✏️ Re-enter Payment Info", callback_data="reenter_payment_info")]
+    ])
+
+    await update.message.reply_text(
+        preview_text,
+        reply_markup=keyboard,
+        parse_mode="HTML"
+    )
+
+
+async def reenter_payment_info_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Allow customer to re-enter their payment transaction info."""
+    query = update.callback_query
+    method = context.user_data.get('payment_method', 'telebirr')
+    context.user_data['awaiting_reference'] = True
+
+    await safe_edit_text(
+        update, context,
+        f"✏️ <b>Re-enter Payment Information ({method.upper()})</b>\n\n"
+        f"Please paste your full SMS notification or type your transaction reference code below:",
+        parse_mode="HTML"
+    )
 
 
 async def place_order(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -265,22 +306,32 @@ async def place_order(update: Update, context: ContextTypes.DEFAULT_TYPE):
             os.path.join(os.path.dirname(__file__), '..', 'data', 'images', 'order_success_banner.png')
         )
 
+        target_msg = update.callback_query.message if update.callback_query else update.message
+        if update.callback_query:
+            try:
+                await update.callback_query.answer("Order submitted successfully!")
+            except Exception:
+                pass
+
         if os.path.exists(success_banner_path):
             with open(success_banner_path, 'rb') as banner_file:
-                await update.message.reply_photo(
+                await target_msg.reply_photo(
                     photo=banner_file,
                     caption=confirmation,
                     reply_markup=InlineKeyboardMarkup(keyboard),
                     parse_mode="HTML"
                 )
         else:
-            await update.message.reply_text(
+            await target_msg.reply_text(
                 confirmation,
                 reply_markup=InlineKeyboardMarkup(keyboard),
                 parse_mode="HTML"
             )
 
         # Notify store admins
+        raw_sms = context.user_data.get('raw_payment_sms')
+        sms_line = f"\n💬 <b>Shared SMS Details:</b>\n<i>{html.escape(raw_sms)}</i>\n" if raw_sms else "\n"
+
         admin_items = "\n".join([
             f"  • {item.quantity}× {html.escape(item.product_name)} ({html.escape(item.finish_variant or 'Standard')})"
             for item in order.items
@@ -298,7 +349,7 @@ async def place_order(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"📦 Items:\n{admin_items}\n"
             f"💰 Total: {order.total_price:,} ETB\n"
             f"💳 Payment: {html.escape(payment_method.upper())}\n"
-            f"📝 Ref: <code>{html.escape(reference or 'N/A')}</code>\n"
+            f"📝 Ref / Code: <code>{html.escape(reference or 'N/A')}</code>{sms_line}"
             f"📍 Address / GPS: {addr_display}\n"
             f"━━━━━━━━━━━━━━━━━━━━"
         )
