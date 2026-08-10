@@ -406,3 +406,12 @@ def seed_products():
         db.rollback()
     finally:
         db.close()
+
+
+if __name__ == '__main__':
+    print("Initializing database tables and migrations...")
+    create_tables()
+    print("Seeding products, variants, and promo codes...")
+    seed_products()
+    print("Database setup complete!")
+
