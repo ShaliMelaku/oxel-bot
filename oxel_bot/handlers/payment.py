@@ -171,15 +171,26 @@ async def process_reference(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['awaiting_reference'] = False
 
     cart_total = context.user_data.get('cart_total', 0)
+    shipping_fee = context.user_data.get('shipping_fee', 200)
+    discount = context.user_data.get('discount_amount', 0)
+    promo_code = context.user_data.get('applied_promo', '')
     phone = context.user_data.get('shipping_phone', 'Not set')
     address = context.user_data.get('shipping_address', 'Not set')
+    lat = context.user_data.get('location_lat')
+    lon = context.user_data.get('location_lon')
+
+    from utils.geo import calculate_delivery_fee
+    _, dist_km = calculate_delivery_fee(lat, lon)
+    dist_info = f" ({dist_km:.1f} km from Megenagna)" if dist_km > 0 else " (Standard Rate)"
+    discount_line = f"\n🎟️ <b>Promo Discount:</b> -{discount:,} ETB" if discount > 0 else ""
 
     preview_text = (
         f"📋 <b>PLEASE CONFIRM YOUR PAYMENT DETAILS</b>\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
         f"💳 <b>Payment Method:</b> {payment_method.upper()}\n"
         f"🔢 <b>Extracted Ref Code:</b> <code>{html.escape(extracted_ref)}</code>\n"
-        f"💰 <b>Amount Due:</b> {cart_total:,} ETB\n"
+        f"🚚 <b>Delivery Fee:</b> {shipping_fee:,} ETB <i>{dist_info}</i>{discount_line}\n"
+        f"💰 <b>Total Amount Due:</b> <b>{cart_total:,} ETB</b>\n\n"
         f"📞 <b>Contact Phone:</b> <code>{html.escape(phone)}</code>\n"
         f"📍 <b>Delivery Address:</b> {html.escape(address)}\n"
         f"━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -231,6 +242,7 @@ async def place_order(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Create multi-item order using Order Service
         phone = context.user_data.get('shipping_phone')
+        shipping_fee = context.user_data.get('shipping_fee')
         try:
             order = create_order_from_cart(
                 db,
@@ -241,7 +253,8 @@ async def place_order(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 phone=phone,
                 promo_code=promo_code,
                 latitude=lat,
-                longitude=lon
+                longitude=lon,
+                shipping_fee=shipping_fee
             )
         except ValueError as ve:
             await update.message.reply_text(f"⚠️ *Checkout Notice:* {str(ve)}", parse_mode="Markdown")

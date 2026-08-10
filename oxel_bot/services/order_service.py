@@ -39,11 +39,12 @@ def create_order_from_cart(
     engraving_text: str = None,
     notes: str = None,
     latitude: float = None,
-    longitude: float = None
+    longitude: float = None,
+    shipping_fee: int = None
 ) -> Order:
     """
     Convert user's persistent cart into a multi-item Order with frozen unit prices,
-    atomic stock deduction, and server-side pricing validation.
+    atomic stock deduction, dynamic distance delivery fee calculation, and server-side pricing validation.
     """
     # ── Input validation ───────────────────────────────────────────────────
     if payment_method and payment_method not in _ALLOWED_PAYMENT_METHODS:
@@ -81,10 +82,13 @@ def create_order_from_cart(
         else:
             logger.warning(f"Promo code '{promo_code}' invalid for user {user_id}: {promo_res['message']}")
 
-    # Fees are included in product prices — no hidden charges added at order time
+    # Calculate dynamic delivery fee based on radius from Megenagna, Addis Ababa
+    if shipping_fee is None:
+        from utils.geo import calculate_delivery_fee
+        shipping_fee, _ = calculate_delivery_fee(latitude, longitude)
+
     engraving_fee = 0
-    shipping_fee = 0
-    total_price = max(0, subtotal - discount_amount)
+    total_price = max(0, subtotal - discount_amount + shipping_fee)
 
     # 1. Atomically deduct stock for all items
     deducted_items = []

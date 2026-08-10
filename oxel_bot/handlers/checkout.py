@@ -226,36 +226,49 @@ async def confirm_address(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = update.effective_user.id
 
-    # Re-fetch cart total from DB in case session was lost
-    cart_total = context.user_data.get('cart_total')
-    if not cart_total:
-        db = SessionLocal()
-        try:
-            summary = get_cart_summary(db, user_id)
-            promo_code = context.user_data.get('applied_promo')
-            discount = 0
-            if promo_code:
-                res = validate_promo_code(db, promo_code, user_id, summary['subtotal'])
-                if res['valid']:
-                    discount = res['discount_amount']
-            cart_total = max(0, summary['subtotal'] - discount)
-            context.user_data['cart_total'] = cart_total
-            context.user_data['discount_amount'] = discount
-        finally:
-            db.close()
+    lat = context.user_data.get('location_lat')
+    lon = context.user_data.get('location_lon')
+
+    from utils.geo import calculate_delivery_fee
+    shipping_fee, dist_km = calculate_delivery_fee(lat, lon)
+    context.user_data['shipping_fee'] = shipping_fee
+
+    subtotal = 0
+    db = SessionLocal()
+    try:
+        summary = get_cart_summary(db, user_id)
+        subtotal = summary['subtotal']
+        promo_code = context.user_data.get('applied_promo')
+        discount = 0
+        if promo_code:
+            res = validate_promo_code(db, promo_code, user_id, subtotal)
+            if res['valid']:
+                discount = res['discount_amount']
+            else:
+                context.user_data.pop('applied_promo', None)
+                promo_code = None
+        context.user_data['discount_amount'] = discount
+    finally:
+        db.close()
 
     discount = context.user_data.get('discount_amount', 0)
     promo_code = context.user_data.get('applied_promo', '')
+    cart_total = max(0, subtotal - discount + shipping_fee)
+    context.user_data['cart_total'] = cart_total
+
     slot = context.user_data.get('delivery_slot', 'Morning (9 AM – 12 PM)')
     address = context.user_data.get('shipping_address', 'Not set')
     phone = context.user_data.get('shipping_phone', 'Not set')
 
     discount_line = f"\n🎟️ <b>Promo ({html.escape(str(promo_code))}):</b> -{discount:,} ETB" if promo_code else ""
+    dist_info = f" ({dist_km:.1f} km from Megenagna)" if dist_km > 0 else " (Standard Rate)"
 
     text = (
         f"💳 <b>Choose Payment Method</b>\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
-        f"💰 <b>Amount Due:</b> {cart_total:,} ETB{discount_line}\n"
+        f"🛒 <b>Items Subtotal:</b> {subtotal:,} ETB\n"
+        f"🚚 <b>Delivery Fee:</b> {shipping_fee:,} ETB <i>{dist_info}</i>{discount_line}\n"
+        f"💰 <b>Total Amount Due:</b> <b>{cart_total:,} ETB</b>\n\n"
         f"📞 <b>Contact Phone:</b> <code>{html.escape(phone)}</code>\n"
         f"🚚 <b>Delivery Slot:</b> <i>{html.escape(slot)}</i>\n"
         f"📍 <b>Address:</b> <i>{html.escape(address)}</i>\n"
