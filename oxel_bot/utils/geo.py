@@ -18,8 +18,8 @@ def calculate_distance_km(lat1: float, lon1: float, lat2: float = MEGENAGNA_LAT,
 def calculate_delivery_fee(lat: float = None, lon: float = None) -> tuple[int, float]:
     """
     Calculate delivery fee based on radius from Megenagna, Addis Ababa.
-    - 0 to 5.0 km: 200 ETB
-    - Every additional 5.0 km: +200 ETB (e.g. 5.1-10km = 400 ETB, 10.1-15km = 600 ETB)
+    - Default fee for manual address without GPS: 200 ETB
+    - With GPS coordinates: 30 ETB per kilometer, rounded up to the next whole kilometer.
     - Returns tuple: (delivery_fee_etb, distance_km)
     """
     if lat is None or lon is None:
@@ -29,7 +29,5 @@ def calculate_delivery_fee(lat: float = None, lon: float = None) -> tuple[int, f
     if dist_km <= 0:
         return 200, 0.0
 
-    multiplier = math.ceil(dist_km / 5.0)
-    multiplier = max(1, multiplier)
-    fee = multiplier * 200
+    fee = max(200, math.ceil(dist_km) * 30)
     return fee, dist_km

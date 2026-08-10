@@ -41,8 +41,19 @@ async def payment_instructions(update: Update, context: ContextTypes.DEFAULT_TYP
 
         promo_code = context.user_data.get('applied_promo')
         discount = context.user_data.get('discount_amount', 0)
-        total = max(0, summary['subtotal'] - discount)
-        context.user_data['cart_total'] = total
+        shipping_fee = context.user_data.get('shipping_fee')
+        if shipping_fee is None:
+            from utils.geo import calculate_delivery_fee
+            shipping_fee, _ = calculate_delivery_fee(
+                context.user_data.get('location_lat'),
+                context.user_data.get('location_lon')
+            )
+            context.user_data['shipping_fee'] = shipping_fee
+
+        total = context.user_data.get('cart_total')
+        if total is None:
+            total = max(0, summary['subtotal'] - discount + shipping_fee)
+            context.user_data['cart_total'] = total
 
         if method == 'telebirr':
             number = TELEBIRR_NUMBER
@@ -55,11 +66,12 @@ async def payment_instructions(update: Update, context: ContextTypes.DEFAULT_TYP
 
         context.user_data['payment_method'] = method
         discount_line = f"\n🎟️ <b>Discount Applied:</b> -{discount:,} ETB" if discount > 0 else ""
+        shipping_line = f"\n🚚 <b>Delivery Fee:</b> {shipping_fee:,} ETB" if shipping_fee else ""
 
         text = (
             f"{emoji} <b>{html.escape(name)} Payment Instructions</b>\n"
             f"━━━━━━━━━━━━━━━━━━━━\n"
-            f"{discount_line}\n"
+            f"{shipping_line}{discount_line}\n"
             f"💰 <b>Send Exactly:</b> <code>{total:,} ETB</code>\n"
             f"📱 <b>To Account/Number:</b> <code>{html.escape(str(number))}</code>\n\n"
             f"━━━━━━━━━━━━━━━━━━━━\n"
@@ -130,9 +142,27 @@ async def process_reference(update: Update, context: ContextTypes.DEFAULT_TYPE):
     extracted_recipient = parsed.get('recipient')
     receipt_url = parsed.get('receipt_url')
 
-    cart_total = context.user_data.get('cart_total', 0)
-    shipping_fee = context.user_data.get('shipping_fee', 200)
+    cart_total = context.user_data.get('cart_total')
+    shipping_fee = context.user_data.get('shipping_fee')
+    if shipping_fee is None:
+        from utils.geo import calculate_delivery_fee
+        shipping_fee, _ = calculate_delivery_fee(
+            context.user_data.get('location_lat'),
+            context.user_data.get('location_lon')
+        )
+        context.user_data['shipping_fee'] = shipping_fee
+
     discount = context.user_data.get('discount_amount', 0)
+    if cart_total is None:
+        from database import SessionLocal
+        from services.cart_service import get_cart_summary
+        db = SessionLocal()
+        try:
+            summary = get_cart_summary(db, update.effective_user.id)
+            cart_total = max(0, summary['subtotal'] - discount + shipping_fee)
+        finally:
+            db.close()
+        context.user_data['cart_total'] = cart_total
     promo_code = context.user_data.get('applied_promo', '')
     phone = context.user_data.get('shipping_phone', 'Not set')
     address = context.user_data.get('shipping_address', 'Not set')
@@ -411,7 +441,14 @@ async def pay_with_points_handler(update: Update, context: ContextTypes.DEFAULT_
         promo_code = context.user_data.get('applied_promo')
         discount = context.user_data.get('discount_amount', 0)
         subtotal = summary['subtotal']
-        total = max(0, subtotal - discount)
+        shipping_fee = context.user_data.get('shipping_fee')
+        if shipping_fee is None:
+            from utils.geo import calculate_delivery_fee
+            shipping_fee, _ = calculate_delivery_fee(
+                context.user_data.get('location_lat'),
+                context.user_data.get('location_lon')
+            )
+        total = max(0, subtotal - discount + shipping_fee)
 
         if pts <= 0:
             try:
@@ -447,7 +484,8 @@ async def pay_with_points_handler(update: Update, context: ContextTypes.DEFAULT_
                 phone=phone,
                 promo_code=promo_code,
                 latitude=lat,
-                longitude=lon
+                longitude=lon,
+                shipping_fee=shipping_fee
             )
 
             order.status = 'submitted'
