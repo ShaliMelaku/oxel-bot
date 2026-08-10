@@ -4,16 +4,24 @@ from datetime import datetime, timezone
 import uuid
 import secrets
 import logging
+import os
 from config import DATABASE_URL
 
 logger = logging.getLogger(__name__)
 
 # ── Engine configuration ───────────────────────────────────────────────────────
-_is_sqlite = 'sqlite' in DATABASE_URL
+db_url = DATABASE_URL
+if db_url.startswith("sqlite:///") and not db_url.startswith("sqlite:////") and ":memory:" not in db_url:
+    db_filename = db_url.replace("sqlite:///", "")
+    project_dir = os.path.dirname(os.path.abspath(__file__))
+    abs_db_path = os.path.abspath(os.path.join(project_dir, db_filename))
+    db_url = f"sqlite:///{abs_db_path}"
+
+_is_sqlite = 'sqlite' in db_url
 
 if _is_sqlite:
     engine = create_engine(
-        DATABASE_URL,
+        db_url,
         connect_args={'check_same_thread': False},
         # SQLite: use WAL journal mode for better concurrent reads without blocking writes
         # pool_pre_ping ensures stale connections are recycled before use
