@@ -255,23 +255,40 @@ async def show_product_detail(
                     pass
 
             if os.path.exists(active_image):
-                with open(active_image, 'rb') as photo_file:
+                try:
+                    with open(active_image, 'rb') as photo_file:
+                        await context.bot.send_photo(
+                            chat_id=chat_id,
+                            photo=photo_file,
+                            caption=text,
+                            reply_markup=InlineKeyboardMarkup(keyboard),
+                            parse_mode="HTML"
+                        )
+                    return
+                except Exception:
+                    pass
+            elif active_image.startswith("http"):
+                try:
                     await context.bot.send_photo(
                         chat_id=chat_id,
-                        photo=photo_file,
+                        photo=active_image,
                         caption=text,
                         reply_markup=InlineKeyboardMarkup(keyboard),
                         parse_mode="HTML"
                     )
-            else:
-                await context.bot.send_photo(
-                    chat_id=chat_id,
-                    photo=active_image,
-                    caption=text,
-                    reply_markup=InlineKeyboardMarkup(keyboard),
-                    parse_mode="HTML"
-                )
+                    return
+                except Exception:
+                    pass
+
+            # Fallback: send as plain text when image is unavailable
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=text,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="HTML"
+            )
         else:
             await safe_edit_text(update, context, text, InlineKeyboardMarkup(keyboard), parse_mode="HTML")
     finally:
         db.close()
+
