@@ -86,5 +86,38 @@ Your feedback helps us continuously perfect our handcrafted woodwork! 🪵✨"""
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Main Menu", callback_data="main_menu")]]),
             parse_mode="Markdown"
         )
+
+        # Notify admins instantly about the new review
+        try:
+            import html
+            from config import ADMIN_IDS
+            from database import User
+            customer = db.query(User).filter(User.user_id == order.user_id).first()
+            cust_name = f"{customer.first_name or ''} {customer.last_name or ''}".strip() if customer else "Customer"
+            username_str = f" (@{customer.username})" if customer and customer.username else ""
+            prod_name = product.name if product else "Wooden Accessory"
+            avg_str = f"{product.avg_rating} ⭐ ({product.review_count} reviews)" if product else "N/A"
+
+            admin_text = (
+                f"🌟 <b>NEW CUSTOMER REVIEW RECEIVED!</b>\n"
+                f"━━━━━━━━━━━━━━━━━━━━\n"
+                f"🔢 <b>Order #:</b> <code>{html.escape(order.order_number)}</code>\n"
+                f"👤 <b>Customer:</b> {html.escape(cust_name)}{html.escape(username_str)}\n"
+                f"📦 <b>Product:</b> {html.escape(prod_name)}\n"
+                f"⭐ <b>Rating:</b> {stars_str} ({rating}/5 Stars)\n"
+                f"📊 <b>Product Rating Avg:</b> {avg_str}"
+            )
+
+            for admin_id in ADMIN_IDS:
+                try:
+                    await context.bot.send_message(
+                        chat_id=admin_id,
+                        text=admin_text,
+                        parse_mode="HTML"
+                    )
+                except Exception:
+                    pass
+        except Exception:
+            pass
     finally:
         db.close()

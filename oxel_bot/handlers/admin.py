@@ -258,7 +258,8 @@ async def admin_manage_order(update: Update, context: ContextTypes.DEFAULT_TYPE,
         shipping_str = f"\n🚚 <b>Delivery Fee:</b> {order.shipping_fee:,} ETB" if order.shipping_fee else ""
         subtotal_str = f"\n🧾 <b>Subtotal:</b> {order.subtotal:,} ETB" if order.subtotal is not None else ""
         pts_tag = " 🏅 <i>Paid with Loyalty Points — auto-confirmed</i>" if order.payment_method == 'LOYALTY_POINTS' else ""
- 
+        rating_str = f"\n⭐ <b>Customer Review:</b> {'⭐' * order.review_rating} ({order.review_rating}/5 Stars)" if order.review_rating else ""
+
         text = (
             f"⚙️ <b>ADMIN ORDER MANAGEMENT</b>\n"
             f"━━━━━━━━━━━━━━━━━━━━\n"
@@ -273,7 +274,7 @@ async def admin_manage_order(update: Update, context: ContextTypes.DEFAULT_TYPE,
             f"━━━━━━━━━━━━━━━━━━━━{subtotal_str}{shipping_str}{promo_str}\n"
             f"💰 <b>Grand Total:</b> {order.total_price:,} ETB\n"
             f"💳 <b>Payment:</b> {html.escape((order.payment_method or 'N/A').upper())}\n"
-            f"📝 <b>Ref:</b> <code>{html.escape(order.payment_reference or 'N/A')}</code>\n\n"
+            f"📝 <b>Ref:</b> <code>{html.escape(order.payment_reference or 'N/A')}</code>{rating_str}\n\n"
             f"Select an admin action below:"
         )
 
