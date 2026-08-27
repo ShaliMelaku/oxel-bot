@@ -177,3 +177,23 @@ async def publish_smm_post_to_channel(bot, db: Session, pillar: str = None) -> t
     except Exception as e:
         logger.error(f"Failed to publish SMM post to channel: {e}")
         return False, f"❌ Channel posting error: {str(e)}"
+
+
+_last_auto_smm_time = 0
+
+
+async def check_and_auto_publish_smm(bot, db: Session, interval_seconds: int = 86400):
+    """
+    Autonomous Scheduler: Checks if 24 hours (86,400s) have passed since the last post.
+    If yes, automatically generates and dispatches the next 4-pillar strategic post to @OxelChannel.
+    """
+    global _last_auto_smm_time
+    import time
+    now = time.time()
+    if _last_auto_smm_time == 0 or (now - _last_auto_smm_time >= interval_seconds):
+        _last_auto_smm_time = now
+        logger.info("Autonomous SMM Scheduler triggered auto-posting to channel...")
+        try:
+            await publish_smm_post_to_channel(bot, db)
+        except Exception as exc:
+            logger.error(f"Autonomous SMM auto-publish error: {exc}")

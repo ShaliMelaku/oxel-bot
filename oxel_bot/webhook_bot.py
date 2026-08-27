@@ -154,6 +154,18 @@ async def _process_update(json_data: dict):
         update = Update.de_json(json_data, ptb_app.bot)
         await ptb_app.process_update(update)
 
+        # Autonomous SMM Scheduler check
+        try:
+            from database import SessionLocal
+            from services.smm_service import check_and_auto_publish_smm
+            db = SessionLocal()
+            try:
+                await check_and_auto_publish_smm(ptb_app.bot, db)
+            finally:
+                db.close()
+        except Exception:
+            pass
+
 
 @flask_app.route('/webhook', methods=['POST'])
 def webhook():
