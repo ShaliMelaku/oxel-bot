@@ -229,8 +229,8 @@ def confirm_order_delivery(db: Session, order_identifier: str, input_code: str, 
     # Valid code -> Fulfill order
     update_order_status(db, order.id, 'delivered', f"Delivery verified with customer code '{input_code}'", admin_id)
 
-    # Award customer loyalty points upon delivery (4 points per 1 ETB = 1pt per 0.25 ETB)
-    points_earned = int(order.total_price) * 4
+    # Award customer loyalty points upon delivery (1 point per 4 ETB spent)
+    points_earned = int(order.total_price // 4)
     award_points(db, order.user_id, points_earned, trans_type='order_reward', description=f"Reward for Order #{order.order_number}", order_id=order.id)
 
     logger.info(f"Order #{order.order_number} successfully fulfilled & delivered via customer confirmation code.")

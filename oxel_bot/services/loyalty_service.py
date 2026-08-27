@@ -26,9 +26,9 @@ def award_points(db: Session, user_id: int, points: int, trans_type: str, descri
     user.loyalty_points = current_balance + points
 
     # Update VIP tier if points increased
-    if user.loyalty_points >= 15000:
+    if user.loyalty_points >= 3750:
         user.vip_tier = "Gold 🥇"
-    elif user.loyalty_points >= 5000:
+    elif user.loyalty_points >= 1250:
         user.vip_tier = "Silver 🥈"
     else:
         user.vip_tier = "Bronze 🥉"

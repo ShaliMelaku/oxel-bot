@@ -49,7 +49,7 @@ async def loyalty_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"🎟️ <b>Redeemable Discount:</b> {redeemable:,} ETB\n\n"
             f"━━━━━━━━━━━━━━━━━━━━\n"
             f"📌 <b>STORE LOYALTY POLICY:</b>\n"
-            f"• Earn <b>4 points</b> for every 1 ETB spent (1 pt per 0.25 ETB)\n"
+            f"• Earn <b>1 point</b> for every 4 ETB spent\n"
             f"• Redeem <b>1,000 points = 100 ETB off</b> your next order\n"
             f"• Use <code>MYPOINTS</code> at checkout promo field to redeem\n\n"
             f"━━━━━━━━━━━━━━━━━━━━\n"
@@ -91,12 +91,12 @@ async def loyalty_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 def award_loyalty_points(user_id: int, amount_spent: int):
-    """Award 4 points per 1 ETB spent (1 point per 0.25 ETB)."""
+    """Award 1 point per 4 ETB spent."""
     db = SessionLocal()
     try:
         user = db.query(User).filter(User.user_id == user_id).first()
         if user:
-            points_earned = amount_spent * 4  # 4 points per 1 ETB (1 pt per 0.25 ETB)
+            points_earned = amount_spent // 4  # 1 point per 4 ETB spent
             user.loyalty_points = (user.loyalty_points or 0) + points_earned
             db.commit()
             return points_earned
