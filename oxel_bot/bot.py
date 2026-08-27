@@ -148,7 +148,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         db = SessionLocal()
         try:
             order = db.query(Order).filter(Order.order_number == order_num).first()
-            if order:
+            if not order:
+                await query.answer("❌ Order not found.", show_alert=True)
+            else:
                 from utils.pdf_invoice import generate_pdf_invoice
                 from database import User, Product
                 customer = db.query(User).filter(User.user_id == order.user_id).first()
@@ -165,7 +167,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             'subtotal': it.subtotal
                         })
                 else:
-                    product = db.query(Product).filter(Product.id == order.product_id).first()
+                    product = db.query(Product).filter(Product.id == order.product_id).first() if order.product_id else None
                     inv_items.append({
                         'name': product.name if product else "Wooden Product",
                         'finish': order.finish_variant or "Standard",
@@ -173,6 +175,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         'price': product.price if product else order.total_price,
                         'subtotal': order.total_price
                     })
+
+                date_str = order.created_at.strftime('%b %d, %Y') if order.created_at else datetime.now().strftime('%b %d, %Y')
 
                 inv_data = {
                     'order_number': order.order_number,
@@ -186,15 +190,22 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     'total_amount': order.total_price,
                     'discount': order.discount_amount or 0,
                     'payment_method': order.payment_method or "TELEBIRR/CBE",
-                    'date': order.created_at.strftime('%b %d, %Y')
+                    'date': date_str
                 }
                 pdf_file = generate_pdf_invoice(inv_data)
                 if os.path.exists(pdf_file):
                     with open(pdf_file, 'rb') as f:
-                        await query.message.reply_document(
+                        await context.bot.send_document(
+                            chat_id=update.effective_chat.id,
                             document=f,
-                            caption=f"📄 Official Invoice — Order #{html.escape(order.order_number)}"
+                            caption=f"📄 Official Invoice — Order #{html.escape(order.order_number)}",
+                            parse_mode="HTML"
                         )
+                else:
+                    await query.answer("❌ Error creating PDF file.", show_alert=True)
+        except Exception as exc:
+            logger.exception("Error generating PDF invoice for order %s: %s", order_num, exc)
+            await query.answer("❌ Error generating invoice PDF. Please try again.", show_alert=True)
         finally:
             db.close()
     elif data == 'catalog':
