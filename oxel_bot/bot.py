@@ -147,12 +147,13 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer("📄 Generating PDF Invoice...", show_alert=False)
         db = SessionLocal()
         try:
+            from datetime import datetime
+            from database import User, Product, Order
             order = db.query(Order).filter(Order.order_number == order_num).first()
             if not order:
                 await query.answer("❌ Order not found.", show_alert=True)
             else:
                 from utils.pdf_invoice import generate_pdf_invoice
-                from database import User, Product
                 customer = db.query(User).filter(User.user_id == order.user_id).first()
                 cust_name = f"{customer.first_name or ''} {customer.last_name or ''}".strip() if customer else "Valued Customer"
                 inv_items = []
