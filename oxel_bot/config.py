@@ -58,7 +58,7 @@ if not ADMIN_IDS:
     print("[WARNING] ADMIN_USER_IDS is empty — no Telegram admins configured.")
 
 # ── Bot & Shop Info ────────────────────────────────────────────────────────────
-BOT_USERNAME = os.getenv('BOT_USERNAME', 'OxelShopBot')
+BOT_USERNAME = os.getenv('BOT_USERNAME', 'oxeletbot')
 SHOP_NAME = os.getenv('SHOP_NAME', 'Oxel')
 SHOP_WEBSITE = os.getenv('SHOP_WEBSITE', 'https://oxel.com')
 TELEBIRR_NUMBER = os.getenv('TELEBIRR_NUMBER', '')

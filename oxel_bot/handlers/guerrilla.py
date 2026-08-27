@@ -161,7 +161,8 @@ async def slash_prod_handler(update: Update, context: ContextTypes.DEFAULT_TYPE,
             return
 
         slash = get_or_create_slash(db, user.id, product.id)
-        bot_username = context.bot.username or "OxelShopBot"
+        from config import BOT_USERNAME
+        bot_username = BOT_USERNAME or (context.bot.username if context.bot else "oxeletbot")
         slash_link = f"https://t.me/{bot_username}?start=slash_{product.id}_{user.id}"
 
         discount_earned = slash.slash_discount_amount

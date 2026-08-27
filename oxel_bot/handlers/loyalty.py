@@ -34,7 +34,8 @@ async def loyalty_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         redeemable = points // 10  # 1,000 pts = 100 ETB discount (10 pts = 1 ETB)
 
-        bot_username = context.bot.username or "OxelShopBot"
+        from config import BOT_USERNAME
+        bot_username = BOT_USERNAME or (context.bot.username if context.bot else "oxeletbot")
         referral_link = f"https://t.me/{bot_username}?start=ref_{user.id}"
 
         # Real customer handle from live Telegram object

@@ -5,7 +5,7 @@ import html
 from datetime import datetime
 from sqlalchemy.orm import Session
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from config import TELEGRAM_CHANNEL, SHOP_NAME
+from config import TELEGRAM_CHANNEL, SHOP_NAME, BOT_USERNAME
 from database import Product, User, Order
 
 logger = logging.getLogger(__name__)
@@ -110,7 +110,7 @@ def generate_strategic_smm_post(db: Session, pillar: str = None) -> tuple[str, I
     template = random.choice(STRATEGIC_POST_TEMPLATES[pillar])
     product = db.query(Product).filter(Product.in_stock == True).order_by(Product.id.desc()).first()
 
-    bot_username = "OxelShopBot"
+    bot_username = BOT_USERNAME
 
     text = (
         f"{template['headline']}\n"
