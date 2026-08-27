@@ -1,9 +1,8 @@
 """
 webhook_bot.py — Oxel Bot in Webhook Mode (PythonAnywhere Free Plan)
 =====================================================================
-Uses a single persistent asyncio event loop per WSGI worker.
-Each webhook request is processed synchronously via loop.run_until_complete()
-— no background threads needed, works reliably on PythonAnywhere.
+Uses asyncio.run() with PTB async context manager per request.
+Compatible with PythonAnywhere WSGI server.
 """
 
 import asyncio
@@ -92,13 +91,6 @@ create_tables()
 seed_products()
 logger.info("Database ready.")
 
-# ── Single persistent event loop (one per WSGI worker process) ────────────────
-# This is the key fix: we use loop.run_until_complete() in the request handler
-# instead of a background thread. PythonAnywhere kills daemon threads between
-# requests, causing the TimeoutError. This approach is reliable and simple.
-_loop = asyncio.new_event_loop()
-asyncio.set_event_loop(_loop)
-
 
 def _build_ptb_app() -> Application:
     app = Application.builder().token(BOT_TOKEN).build()
@@ -149,29 +141,28 @@ def _build_ptb_app() -> Application:
     return app
 
 
-# ── Initialize PTB Application once at startup (synchronous) ──────────────────
-logger.info("Building PTB Application...")
 ptb_app: Application = _build_ptb_app()
-_loop.run_until_complete(ptb_app.initialize())
-_loop.run_until_complete(ptb_app.start())
-logger.info("PTB Application ready.")
 
 
 # ── Flask Web App ──────────────────────────────────────────────────────────────
 flask_app = Flask(__name__)
 
 
+async def _process_update(json_data: dict):
+    async with ptb_app:
+        update = Update.de_json(json_data, ptb_app.bot)
+        await ptb_app.process_update(update)
+
+
 @flask_app.route('/webhook', methods=['POST'])
 def webhook():
-    """Receive Telegram update and process it synchronously in the event loop."""
+    """Receive Telegram update and process it via asyncio.run."""
     json_data = request.get_json(force=True)
     if not json_data:
         return 'Bad Request', 400
 
     try:
-        update = Update.de_json(json_data, ptb_app.bot)
-        # Run directly in our persistent loop — no thread, no timeout issues
-        _loop.run_until_complete(ptb_app.process_update(update))
+        asyncio.run(_process_update(json_data))
     except Exception as exc:
         logger.exception("Error processing update: %s", exc)
 
