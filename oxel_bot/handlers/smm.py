@@ -29,7 +29,7 @@ async def smm_admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "• 💡 <b>Ergonomics & Desk Transformations</b> (30%)\n"
         "• ✂️ <b>Guerrilla Viral Deals & Treasure Hunts</b> (20%)\n"
         "• ⭐ <b>Social Proof & Customer Reviews</b> (20%)\n\n"
-        "Tap an action below to preview or publish strategic content to your Telegram Channel:"
+        "Tap an action below to publish strategic content or write a custom channel post:"
     )
 
     keyboard = InlineKeyboardMarkup([
@@ -38,6 +38,7 @@ async def smm_admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
          InlineKeyboardButton("💡 Publish Ergonomics Tip", callback_data="smm_publish_ergonomics")],
         [InlineKeyboardButton("✂️ Publish Guerrilla Deal", callback_data="smm_publish_guerrilla"),
          InlineKeyboardButton("⭐ Publish Social Proof", callback_data="smm_publish_social_proof")],
+        [InlineKeyboardButton("✍️ Write Custom Channel Post", callback_data="smm_write_custom")],
         [InlineKeyboardButton("👀 Preview Next Strategic Post", callback_data="smm_preview")],
         [InlineKeyboardButton("🔙 Admin Panel", callback_data="admin")]
     ])
@@ -51,15 +52,25 @@ async def smm_publish_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     if not is_admin(user_id):
         return
 
-    if update.callback_query:
-        await update.callback_query.answer("🚀 Publishing Strategic SMM Post to Channel...", show_alert=False)
-
     db = SessionLocal()
     try:
         ok, msg = await publish_smm_post_to_channel(context.bot, db, pillar=pillar)
         if update.callback_query:
-            await update.callback_query.answer(msg, show_alert=True)
+            try:
+                await update.callback_query.answer(msg, show_alert=True)
+            except Exception:
+                try:
+                    await update.callback_query.message.reply_text(f"{msg}")
+                except Exception:
+                    pass
         await smm_admin_menu(update, context)
+    except Exception as e:
+        logger.exception("Error publishing SMM post: %s", e)
+        if update.callback_query:
+            try:
+                await update.callback_query.message.reply_text(f"❌ SMM Publishing Error: {e}")
+            except Exception:
+                pass
     finally:
         db.close()
 
@@ -86,3 +97,20 @@ async def smm_preview_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         await safe_edit_text(update, context, preview_text, InlineKeyboardMarkup(kb_list), parse_mode="HTML")
     finally:
         db.close()
+
+
+async def smm_write_custom_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Prompt admin to type custom post text for channel broadcast."""
+    user_id = update.effective_user.id
+    if not is_admin(user_id):
+        return
+
+    context.user_data['awaiting_custom_smm_text'] = True
+    text = (
+        "✍️ <b>WRITE CUSTOM SMM CHANNEL POST</b>\n"
+        "━━━━━━━━━━━━━━━━━━━━\n"
+        "Please type your custom announcement message in chat below.\n"
+        "The bot will automatically attach a shop buy button link and publish it directly to your Telegram Channel!"
+    )
+    keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("❌ Cancel", callback_data="smm_admin_menu")]])
+    await safe_edit_text(update, context, text, keyboard, parse_mode="HTML")

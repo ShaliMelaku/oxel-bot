@@ -119,6 +119,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         pillar_name = data.replace('smm_publish_', '')
         from handlers.smm import smm_publish_handler
         await smm_publish_handler(update, context, pillar=pillar_name)
+    elif data == 'smm_write_custom':
+        from handlers.smm import smm_write_custom_prompt
+        await smm_write_custom_prompt(update, context)
     elif data == 'smm_preview':
         from handlers.smm import smm_preview_handler
         await smm_preview_handler(update, context)
@@ -779,6 +782,41 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     )
         finally:
             db.close()
+        return
+
+    if context.user_data.get('awaiting_custom_smm_text'):
+        context.user_data['awaiting_custom_smm_text'] = False
+        custom_txt = text.strip()
+        from config import TELEGRAM_CHANNEL, BOT_USERNAME
+        chat_target = TELEGRAM_CHANNEL.strip()
+        if 't.me/' in chat_target:
+            chat_target = f"@{chat_target.split('t.me/')[-1].strip('/').split('?')[0]}"
+        elif not chat_target.startswith('@'):
+            chat_target = f"@{chat_target}"
+
+        post_body = (
+            f"📢 <b>ANNOUNCEMENT</b>\n"
+            f"━━━━━━━━━━━━━━━━━━━━\n"
+            f"{html.escape(custom_txt)}\n\n"
+            f"📢 Channel: {chat_target}"
+        )
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("📦 Open Oxel Telegram Shop", url=f"https://t.me/{BOT_USERNAME}?start=main")]
+        ])
+
+        try:
+            await context.bot.send_message(
+                chat_id=chat_target,
+                text=post_body,
+                reply_markup=keyboard,
+                parse_mode="HTML"
+            )
+            await update.message.reply_text(f"✅ Custom post published successfully to {chat_target}!")
+        except Exception as e:
+            await update.message.reply_text(f"❌ Failed to publish custom post: {e}")
+
+        from handlers.smm import smm_admin_menu
+        await smm_admin_menu(update, context)
         return
 
     if text.startswith('/claim '):
