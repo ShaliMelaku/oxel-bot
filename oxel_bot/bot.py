@@ -142,6 +142,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         }
         context.user_data['delivery_slot'] = slot_map.get(data, 'Morning (9 AM – 12 PM)')
         await confirm_address(update, context)
+    elif data.startswith('prompt_review_') or data.startswith('review_order_'):
+        ord_num = data.replace('prompt_review_', '').replace('review_order_', '')
+        await prompt_order_rating(update, context, ord_num)
     elif data.startswith('rate_'):
         parts = data.split('_')
         order_id = int(parts[1])
@@ -536,7 +539,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     try:
                         await context.bot.send_message(
                             chat_id=order.user_id,
-                            text=f"🏠 *ORDER DELIVERED — THANK YOU!*\n\nYour order `#{order.order_number}` was verified and handed off.\nLeave a review anytime via /myorders!",
+                            text=f"🏠 *ORDER DELIVERED — THANK YOU!*\n\nYour order `#{order.order_number}` was verified and handed off.\nLeave a review anytime below or via /myorders!",
+                            reply_markup=InlineKeyboardMarkup([
+                                [InlineKeyboardButton("⭐ Leave a Review Now", callback_data=f"prompt_review_{order.order_number}")],
+                                [InlineKeyboardButton("📋 My Orders", callback_data="my_orders")]
+                            ]),
                             parse_mode="Markdown"
                         )
                     except Exception:
@@ -1194,6 +1201,7 @@ def main():
     app.add_handler(CommandHandler('clearcart', clear_cart_command))
     app.add_handler(CommandHandler('track', track_command))
     app.add_handler(CommandHandler('orders', my_orders))
+    app.add_handler(CommandHandler('myorders', my_orders))
     app.add_handler(CommandHandler('loyalty', loyalty_menu))
     app.add_handler(CommandHandler('profile', user_profile_menu))
 

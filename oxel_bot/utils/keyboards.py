@@ -87,13 +87,16 @@ def catalog_keyboard():
     return InlineKeyboardMarkup(keyboard)
 
 
-def order_status_keyboard(order_number: str):
-    keyboard = [
+def order_status_keyboard(order_number: str, is_delivered: bool = False):
+    keyboard = []
+    if is_delivered:
+        keyboard.append([InlineKeyboardButton("⭐ Leave a Review", callback_data=f"prompt_review_{order_number}")])
+    keyboard.extend([
         [InlineKeyboardButton("🔄 Refresh Status", callback_data=f"refresh_order_{order_number}")],
         [InlineKeyboardButton("📋 My Orders", callback_data="my_orders"),
          InlineKeyboardButton("📞 Contact Support", callback_data="contact_support")],
         [InlineKeyboardButton("🔙 Main Menu", callback_data="main_menu")]
-    ]
+    ])
     return InlineKeyboardMarkup(keyboard)
 
 

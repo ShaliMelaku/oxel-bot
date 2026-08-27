@@ -106,7 +106,7 @@ async def show_order_status(update: Update, context: ContextTypes.DEFAULT_TYPE, 
             f"{chr(10).join(timeline) if timeline else '  <i>No updates yet</i>'}"
         )
 
-        keyboard = order_status_keyboard(order_number)
+        keyboard = order_status_keyboard(order_number, is_delivered=(order.status == 'delivered'))
 
         if update.callback_query:
             await safe_edit_text(update, context, text, keyboard, parse_mode="HTML")
@@ -145,16 +145,24 @@ async def my_orders(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     items_desc = html.escape(product.name) if product else 'Item'
 
                 emoji = status_emoji.get(order.status, '📌')
-                text += f"\n{emoji} <code>{html.escape(order.order_number)}</code>\n"
+                rating_str = f" · ⭐ {order.review_rating}/5" if order.review_rating else ""
+                text += f"\n{emoji} <code>{html.escape(order.order_number)}</code>{rating_str}\n"
                 text += f"   📦 {items_desc} · <b>{order.total_price:,} ETB</b>\n"
                 text += f"   📌 {order.status.upper()} · {order.created_at.strftime('%b %d, %Y')}\n"
 
             keyboard = []
             for order in orders:
-                keyboard.append([InlineKeyboardButton(
+                row = [InlineKeyboardButton(
                     f"🔍 {order.order_number}",
                     callback_data=f"refresh_order_{order.order_number}"
-                )])
+                )]
+                if order.status == 'delivered':
+                    btn_label = f"⭐ {order.review_rating}/5" if order.review_rating else "⭐ Review"
+                    row.append(InlineKeyboardButton(
+                        btn_label,
+                        callback_data=f"prompt_review_{order.order_number}"
+                    ))
+                keyboard.append(row)
 
         keyboard.append([InlineKeyboardButton("🔙 Main Menu", callback_data="main_menu")])
 

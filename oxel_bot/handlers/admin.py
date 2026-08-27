@@ -1552,7 +1552,11 @@ async def admin_confirm_delivery_callback(update: Update, context: ContextTypes.
         try:
             await context.bot.send_message(
                 chat_id=order.user_id,
-                text=f"🏠 *ORDER DELIVERED — THANK YOU!*\n\n🧧 *Order #:* `{order.order_number}` has been marked as *DELIVERED*.\n\n⭐ We’d love to hear from you! Please leave a review via /myorders — it means the world to us. 🙏",
+                text=f"🏠 *ORDER DELIVERED — THANK YOU!*\n\n🧧 *Order #:* `{order.order_number}` has been marked as *DELIVERED*.\n\n⭐ We’d love to hear from you! Tap below to leave a review — it means the world to us. 🙏",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("⭐ Leave a Review Now", callback_data=f"prompt_review_{order.order_number}")],
+                    [InlineKeyboardButton("📋 My Orders", callback_data="my_orders")]
+                ]),
                 parse_mode="Markdown"
             )
         except Exception:
@@ -1989,7 +1993,11 @@ async def confirm_delivery_command(update: Update, context: ContextTypes.DEFAULT
 ━━━━━━━━━━━━━━━━━━━━
 Your order `{order.order_number}` has been successfully received and confirmed via your delivery code.
 
-Thank you for choosing Oxel Handcrafted Craftsmanship! 🪵✨""",
+⭐ We'd love your feedback! Tap below to leave a review anytime.""",
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("⭐ Leave a Review Now", callback_data=f"prompt_review_{order.order_number}")],
+                        [InlineKeyboardButton("📋 My Orders", callback_data="my_orders")]
+                    ]),
                     parse_mode="Markdown"
                 )
             except Exception:

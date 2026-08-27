@@ -104,6 +104,7 @@ def _build_ptb_app() -> Application:
     app.add_handler(CommandHandler('clearcart', clear_cart_command))
     app.add_handler(CommandHandler('track', track_command))
     app.add_handler(CommandHandler('orders', my_orders))
+    app.add_handler(CommandHandler('myorders', my_orders))
     app.add_handler(CommandHandler('loyalty', loyalty_menu))
     app.add_handler(CommandHandler('profile', user_profile_menu))
 
