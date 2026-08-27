@@ -15,7 +15,15 @@ from config import BOT_TOKEN, ADMIN_IDS
 from database import create_tables, seed_products, SessionLocal, PromoCode, User, Product, ProductVariant
 from handlers.start import start_command, help_command, about_command
 from handlers.catalog import catalog_command, show_category, show_product_detail
-from handlers.cart import add_to_cart, view_cart, update_cart_handler, adjust_quantity
+from handlers.cart import (
+    add_to_cart,
+    view_cart,
+    prompt_clear_cart,
+    clear_cart,
+    clear_cart_command,
+    update_cart_handler,
+    adjust_quantity
+)
 from handlers.checkout import checkout, process_address, process_phone, confirm_address
 from handlers.payment import (
     payment_instructions, upload_receipt, process_receipt,
@@ -80,6 +88,10 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await catalog_command(update, context)
     elif data == 'view_cart':
         await view_cart(update, context)
+    elif data == 'clear_cart':
+        await prompt_clear_cart(update, context)
+    elif data == 'confirm_clear_cart':
+        await clear_cart(update, context)
     elif data == 'update_cart':
         await update_cart_handler(update, context)
     elif data == 'track_order':
@@ -1179,6 +1191,7 @@ def main():
     app.add_handler(CommandHandler('about', about_command))
     app.add_handler(CommandHandler('catalog', catalog_command))
     app.add_handler(CommandHandler('cart', view_cart))
+    app.add_handler(CommandHandler('clearcart', clear_cart_command))
     app.add_handler(CommandHandler('track', track_command))
     app.add_handler(CommandHandler('orders', my_orders))
     app.add_handler(CommandHandler('loyalty', loyalty_menu))

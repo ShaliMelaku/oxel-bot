@@ -5,6 +5,7 @@ from telegram.ext import ContextTypes
 from database import SessionLocal, Product, ProductVariant
 from services.cart_service import (
     add_to_cart as service_add_to_cart,
+    clear_cart as service_clear_cart,
     get_cart_summary,
     remove_from_cart as service_remove_from_cart,
     update_cart_item_quantity
@@ -171,6 +172,7 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 [InlineKeyboardButton("💳 Checkout", callback_data="checkout")],
                 [InlineKeyboardButton("🎟️ Apply Promo Code", callback_data="apply_promo")],
                 [InlineKeyboardButton("✏️ Adjust Quantities", callback_data="update_cart")],
+                [InlineKeyboardButton("🗑 Clear Cart", callback_data="clear_cart")],
                 [InlineKeyboardButton("📦 Keep Shopping", callback_data="catalog")],
                 [InlineKeyboardButton("🔙 Main Menu", callback_data="main_menu")]
             ]
@@ -185,8 +187,87 @@ async def view_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
     finally:
         db.close()
-
-
+ 
+ 
+async def prompt_clear_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Ask customer to confirm clearing their cart."""
+    query = update.callback_query
+    summary = None
+    db = SessionLocal()
+    try:
+        summary = get_cart_summary(db, update.effective_user.id)
+    finally:
+        db.close()
+ 
+    if not summary or not summary['items']:
+        await query.answer("Your cart is already empty.", show_alert=True)
+        await view_cart(update, context)
+        return
+ 
+    text = (
+        "🗑 <b>Clear Cart?</b>\n"
+        "━━━━━━━━━━━━━━━━━━━━\n"
+        "This will remove all items from your cart.\n"
+        "Are you sure you want to continue?"
+    )
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("✅ Yes, clear cart", callback_data="confirm_clear_cart")],
+        [InlineKeyboardButton("❌ No, keep cart", callback_data="view_cart")]
+    ])
+    await safe_edit_text(update, context, text, keyboard, parse_mode="HTML")
+ 
+ 
+async def clear_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Clear the user's cart and show the updated empty-cart view."""
+    query = update.callback_query
+    user_id = update.effective_user.id
+    db = SessionLocal()
+    try:
+        removed = service_clear_cart(db, user_id)
+    finally:
+        db.close()
+ 
+    context.user_data.pop('cart_total', None)
+    context.user_data.pop('shipping_fee', None)
+    if removed:
+        await query.answer("✅ Cart cleared.", show_alert=True)
+    else:
+        await query.answer("Your cart is already empty.", show_alert=True)
+ 
+    await view_cart(update, context)
+ 
+ 
+async def clear_cart_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Clear cart using a text command, with confirmation prompt."""
+    if update.message:
+        user_id = update.effective_user.id
+        summary = None
+        db = SessionLocal()
+        try:
+            summary = get_cart_summary(db, user_id)
+        finally:
+            db.close()
+ 
+        if not summary or not summary['items']:
+            await update.message.reply_text("🛒 Your cart is already empty.")
+            return
+ 
+        text = (
+            "🗑 <b>Clear Cart?</b>\n"
+            "━━━━━━━━━━━━━━━━━━━━\n"
+            "This will remove all items from your cart.\n"
+            "Are you sure you want to continue?"
+        )
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅ Yes, clear cart", callback_data="confirm_clear_cart")],
+            [InlineKeyboardButton("❌ No, keep cart", callback_data="view_cart")]
+        ])
+        await update.message.reply_text(text, reply_markup=keyboard, parse_mode="HTML")
+        return
+ 
+    await prompt_clear_cart(update, context)
+ 
+ 
 async def update_cart_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handler for showing cart quantity adjustment keyboard."""
     user_id = update.effective_user.id
