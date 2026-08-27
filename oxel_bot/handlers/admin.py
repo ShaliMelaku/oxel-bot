@@ -68,6 +68,7 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard = [
             [InlineKeyboardButton("⏳ Pending Verifications", callback_data="admin_pending")],
             [InlineKeyboardButton("📊 Export PDF Sales Report", callback_data="export_admin_sales_pdf")],
+            [InlineKeyboardButton("📁 Export CSV Data Spreadsheets", callback_data="admin_export_csv_menu")],
             [InlineKeyboardButton("📢 Push Broadcast Engine", callback_data="admin_broadcast_menu")],
             [InlineKeyboardButton("🪵 Product CMS & Catalog Editor", callback_data="admin_products")],
             [InlineKeyboardButton("📊 Inventory Stock Levels", callback_data="admin_inventory")],
@@ -103,6 +104,27 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
     finally:
         db.close()
+
+
+async def admin_export_csv_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if not is_admin(user_id):
+        return
+
+    text = (
+        "📁 <b>ADMIN CSV DATA EXPORTER</b>\n"
+        "━━━━━━━━━━━━━━━━━━━━\n"
+        "Export raw store data to downloadable <code>.csv</code> spreadsheets for Excel &amp; accounting:\n"
+    )
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🧾 Export Orders CSV", callback_data="export_csv_orders")],
+        [InlineKeyboardButton("👥 Export Customers CRM CSV", callback_data="export_csv_customers")],
+        [InlineKeyboardButton("📦 Export Product Inventory CSV", callback_data="export_csv_inventory")],
+        [InlineKeyboardButton("🔙 Admin Panel", callback_data="admin")]
+    ])
+
+    from utils.safe_message import safe_edit_text
+    await safe_edit_text(update, context, text, keyboard, parse_mode="HTML")
 
 
 async def check_and_notify_low_stock(bot, product_id: int, finish_name: str):

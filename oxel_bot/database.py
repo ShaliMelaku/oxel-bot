@@ -314,6 +314,22 @@ class StockAlert(Base):
     )
 
 
+class GiftVoucher(Base):
+    __tablename__ = 'gift_vouchers'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    code = Column(String(50), unique=True, nullable=False)
+    amount = Column(Integer, nullable=False)
+    creator_user_id = Column(Integer, ForeignKey('users.user_id'), nullable=True)
+    is_claimed = Column(Boolean, default=False)
+    claimed_by_user_id = Column(Integer, ForeignKey('users.user_id'), nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    claimed_at = Column(DateTime, nullable=True)
+
+    __table_args__ = (
+        Index('ix_gift_vouchers_code', 'code'),
+    )
+
+
 def get_db():
     db = SessionLocal()
     try:

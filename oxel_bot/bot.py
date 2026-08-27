@@ -106,6 +106,42 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     caption="📊 <b>Executive Financial & Sales Report</b>",
                     parse_mode="HTML"
                 )
+    elif data == 'admin_export_csv_menu':
+        from handlers.admin import admin_export_csv_menu
+        await admin_export_csv_menu(update, context)
+    elif data == 'export_csv_orders':
+        await query.answer("📊 Exporting Orders CSV...", show_alert=False)
+        db = SessionLocal()
+        try:
+            from services.csv_service import export_orders_csv
+            csv_path = export_orders_csv(db)
+            if os.path.exists(csv_path):
+                with open(csv_path, 'rb') as f:
+                    await query.message.reply_document(document=f, caption="🧾 <b>Oxel Orders CSV Export</b>", parse_mode="HTML")
+        finally:
+            db.close()
+    elif data == 'export_csv_customers':
+        await query.answer("👥 Exporting Customers CRM CSV...", show_alert=False)
+        db = SessionLocal()
+        try:
+            from services.csv_service import export_customers_csv
+            csv_path = export_customers_csv(db)
+            if os.path.exists(csv_path):
+                with open(csv_path, 'rb') as f:
+                    await query.message.reply_document(document=f, caption="👥 <b>Oxel Customers CRM CSV Export</b>", parse_mode="HTML")
+        finally:
+            db.close()
+    elif data == 'export_csv_inventory':
+        await query.answer("📦 Exporting Inventory CSV...", show_alert=False)
+        db = SessionLocal()
+        try:
+            from services.csv_service import export_inventory_csv
+            csv_path = export_inventory_csv(db)
+            if os.path.exists(csv_path):
+                with open(csv_path, 'rb') as f:
+                    await query.message.reply_document(document=f, caption="📦 <b>Oxel Inventory Stock CSV Export</b>", parse_mode="HTML")
+        finally:
+            db.close()
     elif data.startswith('pdf_inv_'):
         order_num = data.replace('pdf_inv_', '').strip()
         await query.answer("📄 Generating PDF Invoice...", show_alert=False)
