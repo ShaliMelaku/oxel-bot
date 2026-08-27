@@ -150,6 +150,12 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         order_id = int(parts[1])
         rating = int(parts[2])
         await process_rating(update, context, order_id, rating)
+    elif data.startswith('tip_'):
+        parts = data.split('_')
+        order_id = int(parts[1])
+        amt_str = parts[2]
+        from handlers.reviews import handle_tip_callback
+        await handle_tip_callback(update, context, order_id, amt_str)
     elif data == 'edit_saved_addr_1':
         await safe_edit_text(update, context, "✏️ *Edit Primary Address #1*\n\nPlease type your primary shipping address:")
         context.user_data['awaiting_addr1'] = True
@@ -509,6 +515,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if product_id:
                 await cms_edit_product(update, context, product_id)
             return
+        elif context.user_data.get('awaiting_tip_order_id'):
+            from handlers.reviews import process_tip_submission
+            await process_tip_submission(update, context, ref_or_note="Photo Receipt Uploaded")
+            return
 
     # Contact handler (Telegram shared contact card)
     if update.message.contact:
@@ -517,6 +527,27 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = update.message.text
     if not text:
+        return
+
+    # Tip handling (custom amount or reference text)
+    if context.user_data.get('awaiting_custom_tip_amount'):
+        order_id = context.user_data.get('awaiting_tip_order_id')
+        try:
+            custom_amt = int(text.strip())
+            if custom_amt <= 0:
+                await update.message.reply_text("❌ Tip amount must be greater than 0.")
+                return
+            context.user_data['awaiting_custom_tip_amount'] = False
+            from handlers.reviews import render_tip_payment_instructions
+            await render_tip_payment_instructions(update, context, order_id, custom_amt)
+            return
+        except ValueError:
+            await update.message.reply_text("❌ Please enter a valid tip number (e.g. 150):")
+            return
+
+    if context.user_data.get('awaiting_tip_order_id'):
+        from handlers.reviews import process_tip_submission
+        await process_tip_submission(update, context)
         return
 
     # Admin Delivery Code Verification
