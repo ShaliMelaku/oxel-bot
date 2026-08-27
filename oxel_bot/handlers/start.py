@@ -17,9 +17,30 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         existing = sync_telegram_user(db, user)
 
         # Handle referral deep link if user was newly registered
+        args = context.args or []
+        ref_arg = args[0] if args else None
+
+        if ref_arg and ref_arg.startswith('slash_'):
+            parts = ref_arg.split('_')
+            if len(parts) >= 3:
+                try:
+                    product_id = int(parts[1])
+                    referrer_id = int(parts[2])
+                    from services.guerrilla_service import apply_slash_click
+                    ok, msg, disc = apply_slash_click(db, referrer_id, product_id, user.id)
+                    if ok:
+                        try:
+                            await context.bot.send_message(
+                                chat_id=referrer_id,
+                                text=f"🎉 <b>PRICE SLASHED!</b>\nYour friend <b>{user.first_name}</b> opened your slash link! You earned <b>100 ETB off</b> (Total Discount: {disc:,} ETB)! ✂️🔥",
+                                parse_mode="HTML"
+                            )
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+
         if existing and not existing.referred_by:
-            args = context.args or []
-            ref_arg = args[0] if args else None
             referrer_id = parse_referral_code(ref_arg) if ref_arg else None
             if referrer_id and referrer_id != user.id:
                 existing.referred_by = referrer_id
@@ -28,7 +49,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 try:
                     await context.bot.send_message(
                         chat_id=referrer_id,
-                        text=f"🎉 <b>REFERRAL ALERT!</b>\n━━━━━━━━━━━━━━━━━━━━\nYour friend <b>{user.first_name}</b> just joined Oxel using your referral link!\n\nYou'll be credited <b>+100 Loyalty Points (100 ETB)</b> the moment they place their first order! 🪵✨",
+                        text=f"🎉 <b>REFERRAL ALERT!</b>\n━━━━━━━━━━━━━━━━━━━━\nYour friend <b>{user.first_name}</b> just joined Oxel using your referral link!\n\nYou'll be credited <b>+1,000 Loyalty Points (100 ETB)</b> the moment they place their first order! 🪵✨",
                         parse_mode="HTML"
                     )
                 except Exception:

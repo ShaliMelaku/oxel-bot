@@ -4,6 +4,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton,
 def main_menu_keyboard():
     keyboard = [
         [InlineKeyboardButton("📦 Browse Products", callback_data="catalog")],
+        [InlineKeyboardButton("🚀 Guerrilla Deals & FAQ", callback_data="guerrilla_hub")],
         [InlineKeyboardButton("🛒 My Cart", callback_data="view_cart"),
          InlineKeyboardButton("📋 My Orders", callback_data="my_orders")],
         [InlineKeyboardButton("👤 My Profile & VIP", callback_data="user_profile"),

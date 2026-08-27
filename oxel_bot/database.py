@@ -330,6 +330,34 @@ class GiftVoucher(Base):
     )
 
 
+class PriceSlash(Base):
+    __tablename__ = 'price_slashes'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.user_id'), nullable=False)
+    product_id = Column(Integer, ForeignKey('products.id'), nullable=False)
+    slashes_count = Column(Integer, default=0)
+    max_slashes = Column(Integer, default=3)
+    slash_discount_amount = Column(Integer, default=0)
+    is_used = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (
+        Index('ix_price_slashes_user_product', 'user_id', 'product_id'),
+    )
+
+
+class GuerrillaCode(Base):
+    __tablename__ = 'guerrilla_codes'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    code_type = Column(String(50), nullable=False)  # 'hunt', 'goldenticket'
+    code = Column(String(50), unique=True, nullable=False)
+    reward_amount = Column(Integer, nullable=False)
+    is_claimed = Column(Boolean, default=False)
+    claimed_by_user_id = Column(Integer, ForeignKey('users.user_id'), nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    claimed_at = Column(DateTime, nullable=True)
+
+
 def get_db():
     db = SessionLocal()
     try:

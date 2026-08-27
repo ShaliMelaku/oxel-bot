@@ -209,6 +209,35 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.answer("❌ Error generating invoice PDF. Please try again.", show_alert=True)
         finally:
             db.close()
+    elif data == 'guerrilla_hub':
+        from handlers.guerrilla import guerrilla_hub
+        await guerrilla_hub(update, context)
+    elif data == 'guerrilla_slash_list':
+        from handlers.guerrilla import slash_list_handler
+        await slash_list_handler(update, context)
+    elif data == 'guerrilla_tradein_info':
+        from handlers.guerrilla import tradein_info_handler
+        await tradein_info_handler(update, context)
+    elif data == 'guerrilla_hunt_info':
+        from handlers.guerrilla import hunt_info_handler
+        await hunt_info_handler(update, context)
+    elif data == 'guerrilla_golden_info':
+        from handlers.guerrilla import golden_info_handler
+        await golden_info_handler(update, context)
+    elif data == 'guerrilla_auction_info':
+        from handlers.guerrilla import auction_info_handler
+        await auction_info_handler(update, context)
+    elif data == 'faq_menu':
+        from handlers.guerrilla import faq_menu
+        await faq_menu(update, context)
+    elif data.startswith('faq_topic_'):
+        topic_key = data.replace('faq_topic_', '')
+        from handlers.guerrilla import faq_topic_handler
+        await faq_topic_handler(update, context, topic_key)
+    elif data.startswith('slash_prod_'):
+        pid = int(data.replace('slash_prod_', ''))
+        from handlers.guerrilla import slash_prod_handler
+        await slash_prod_handler(update, context, pid)
     elif data == 'catalog':
         await catalog_command(update, context)
     elif data == 'view_cart':
@@ -616,9 +645,21 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['awaiting_phone'] = True
         return
 
-    # Photo handler (receipt or product/variant photo edit)
+    # Photo handler (receipt, plastic trade-in, or product/variant photo edit)
     if update.message.photo:
-        if context.user_data.get('awaiting_receipt'):
+        if context.user_data.get('awaiting_tradein_photo'):
+            context.user_data['awaiting_tradein_photo'] = False
+            context.user_data['applied_promo'] = 'TRASHPLASTIC500'
+            context.user_data['discount_amount'] = 500
+            await update.message.reply_text(
+                "⚡ <b>PLASTIC TRADE-IN VERIFIED!</b>\n━━━━━━━━━━━━━━━━━━━━\n"
+                "Thank you for ditching plastic! We've credited a <b>-500 ETB Trade-In Discount</b> directly to your shopping cart!\n\n"
+                "Tap below to browse our handcrafted Ethiopian Wanza/Oak pieces:",
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("📦 Browse Catalog", callback_data="catalog")]]),
+                parse_mode="HTML"
+            )
+            return
+        elif context.user_data.get('awaiting_receipt'):
             await process_receipt(update, context)
             return
         elif context.user_data.get('awaiting_new_photo'):
@@ -725,6 +766,33 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     )
         finally:
             db.close()
+        return
+
+    if text.startswith('/claim '):
+        code_str = text.replace('/claim ', '').strip()
+        db = SessionLocal()
+        try:
+            from services.guerrilla_service import redeem_hunt_code
+            ok, msg = redeem_hunt_code(db, update.effective_user.id, code_str)
+            await update.message.reply_text(msg, parse_mode="HTML")
+        finally:
+            db.close()
+        return
+
+    if text.startswith('/goldenticket '):
+        code_str = text.replace('/goldenticket ', '').strip()
+        db = SessionLocal()
+        try:
+            from services.guerrilla_service import redeem_golden_seal
+            ok, msg = redeem_golden_seal(db, update.effective_user.id, code_str)
+            await update.message.reply_text(msg, parse_mode="HTML")
+        finally:
+            db.close()
+        return
+
+    if text.lower() in ['/guerrilla', '/slash', '/hunt', '/tradein', '/goldenticket', '/auction', '/faq']:
+        from handlers.guerrilla import guerrilla_hub
+        await guerrilla_hub(update, context)
         return
     if context.user_data.get('awaiting_new_price'):
         product_id = context.user_data.get('edit_prod_id')
