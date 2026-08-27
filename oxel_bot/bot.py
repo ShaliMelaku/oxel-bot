@@ -84,6 +84,83 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Main navigation
     if data == 'main_menu':
         await start_command(update, context)
+    elif data == 'download_pdf_catalog':
+        await query.answer("📑 Generating Product Catalog PDF...", show_alert=False)
+        from utils.pdf_catalog import generate_pdf_catalog
+        pdf_file = generate_pdf_catalog()
+        if os.path.exists(pdf_file):
+            with open(pdf_file, 'rb') as f:
+                await query.message.reply_document(
+                    document=f,
+                    caption="📑 <b>Official Oxel Product Catalog & Price List</b>",
+                    parse_mode="HTML"
+                )
+    elif data == 'export_admin_sales_pdf':
+        await query.answer("📊 Generating Financial Sales Report PDF...", show_alert=False)
+        from utils.pdf_analytics import generate_pdf_sales_report
+        pdf_file = generate_pdf_sales_report()
+        if os.path.exists(pdf_file):
+            with open(pdf_file, 'rb') as f:
+                await query.message.reply_document(
+                    document=f,
+                    caption="📊 <b>Executive Financial & Sales Report</b>",
+                    parse_mode="HTML"
+                )
+    elif data.startswith('pdf_inv_'):
+        order_num = data.replace('pdf_inv_', '').strip()
+        await query.answer("📄 Generating PDF Invoice...", show_alert=False)
+        db = SessionLocal()
+        try:
+            order = db.query(Order).filter(Order.order_number == order_num).first()
+            if order:
+                from utils.pdf_invoice import generate_pdf_invoice
+                from database import User, Product
+                customer = db.query(User).filter(User.user_id == order.user_id).first()
+                cust_name = f"{customer.first_name or ''} {customer.last_name or ''}".strip() if customer else "Valued Customer"
+                inv_items = []
+                if order.items:
+                    for it in order.items:
+                        inv_items.append({
+                            'name': it.product_name,
+                            'finish': it.finish_variant or 'Standard',
+                            'engraving': it.engraving_text,
+                            'quantity': it.quantity,
+                            'price': it.unit_price,
+                            'subtotal': it.subtotal
+                        })
+                else:
+                    product = db.query(Product).filter(Product.id == order.product_id).first()
+                    inv_items.append({
+                        'name': product.name if product else "Wooden Product",
+                        'finish': order.finish_variant or "Standard",
+                        'quantity': order.quantity or 1,
+                        'price': product.price if product else order.total_price,
+                        'subtotal': order.total_price
+                    })
+
+                inv_data = {
+                    'order_number': order.order_number,
+                    'customer_name': cust_name,
+                    'phone': order.phone or (customer.phone if customer else "N/A"),
+                    'address': order.shipping_address or "Addis Ababa, Ethiopia",
+                    'items': inv_items,
+                    'subtotal': order.subtotal or sum(i['subtotal'] for i in inv_items),
+                    'shipping_fee': order.shipping_fee or 0,
+                    'engraving_fee': order.engraving_fee or 0,
+                    'total_amount': order.total_price,
+                    'discount': order.discount_amount or 0,
+                    'payment_method': order.payment_method or "TELEBIRR/CBE",
+                    'date': order.created_at.strftime('%b %d, %Y')
+                }
+                pdf_file = generate_pdf_invoice(inv_data)
+                if os.path.exists(pdf_file):
+                    with open(pdf_file, 'rb') as f:
+                        await query.message.reply_document(
+                            document=f,
+                            caption=f"📄 Official Invoice — Order #{html.escape(order.order_number)}"
+                        )
+        finally:
+            db.close()
     elif data == 'catalog':
         await catalog_command(update, context)
     elif data == 'view_cart':

@@ -106,7 +106,8 @@ async def show_order_status(update: Update, context: ContextTypes.DEFAULT_TYPE, 
             f"{chr(10).join(timeline) if timeline else '  <i>No updates yet</i>'}"
         )
 
-        keyboard = order_status_keyboard(order_number, is_delivered=(order.status == 'delivered'))
+        is_paid = order.status in ['verified', 'confirmed', 'shipped', 'delivered']
+        keyboard = order_status_keyboard(order_number, is_delivered=(order.status == 'delivered'), is_paid=is_paid)
 
         if update.callback_query:
             await safe_edit_text(update, context, text, keyboard, parse_mode="HTML")

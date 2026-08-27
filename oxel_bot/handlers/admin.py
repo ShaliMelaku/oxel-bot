@@ -67,6 +67,7 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         keyboard = [
             [InlineKeyboardButton("⏳ Pending Verifications", callback_data="admin_pending")],
+            [InlineKeyboardButton("📊 Export PDF Sales Report", callback_data="export_admin_sales_pdf")],
             [InlineKeyboardButton("📢 Push Broadcast Engine", callback_data="admin_broadcast_menu")],
             [InlineKeyboardButton("🪵 Product CMS & Catalog Editor", callback_data="admin_products")],
             [InlineKeyboardButton("📊 Inventory Stock Levels", callback_data="admin_inventory")],

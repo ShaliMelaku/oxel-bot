@@ -82,15 +82,18 @@ def catalog_keyboard():
          InlineKeyboardButton("🎧 Headphone Stands", callback_data="category_headphone")],
         [InlineKeyboardButton("🎁 Curated Bundles", callback_data="category_bundle"),
          InlineKeyboardButton("📦 All Products", callback_data="category_all")],
+        [InlineKeyboardButton("📑 Download PDF Catalog", callback_data="download_pdf_catalog")],
         [InlineKeyboardButton("🔙 Main Menu", callback_data="main_menu")]
     ]
     return InlineKeyboardMarkup(keyboard)
 
 
-def order_status_keyboard(order_number: str, is_delivered: bool = False):
+def order_status_keyboard(order_number: str, is_delivered: bool = False, is_paid: bool = False):
     keyboard = []
     if is_delivered:
         keyboard.append([InlineKeyboardButton("⭐ Leave a Review", callback_data=f"prompt_review_{order_number}")])
+    if is_paid or is_delivered:
+        keyboard.append([InlineKeyboardButton("📄 Download PDF Invoice", callback_data=f"pdf_inv_{order_number}")])
     keyboard.extend([
         [InlineKeyboardButton("🔄 Refresh Status", callback_data=f"refresh_order_{order_number}")],
         [InlineKeyboardButton("📋 My Orders", callback_data="my_orders"),
