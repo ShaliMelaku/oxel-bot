@@ -598,8 +598,8 @@ async def verify_order(update: Update, context: ContextTypes.DEFAULT_TYPE, order
         product = db.query(Product).filter(Product.id == order.product_id).first()
         customer = db.query(User).filter(User.user_id == order.user_id).first()
 
-        # Compute loyalty points awarded (10% of order total)
-        points_earned = int(order.total_price * 0.10)
+        # Compute loyalty points awarded (1 point per 1 ETB spent)
+        points_earned = int(order.total_price)
 
         # Check if referral reward was triggered for this user
         from database import Referral

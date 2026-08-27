@@ -30,7 +30,7 @@ def sync_user_loyalty_and_vip(db, user_id: int) -> dict:
         Order.status.in_(['paid', 'confirmed', 'shipped', 'delivered'])
     ).scalar() or 0
 
-    order_earned_pts = total_spend // 100
+    order_earned_pts = total_spend  # 1 point per 1 ETB spent
 
     # Combined true points balance = max of stored points, transaction sum, or spend-earned points + transactions
     current_stored = user.loyalty_points or 0
@@ -40,12 +40,12 @@ def sync_user_loyalty_and_vip(db, user_id: int) -> dict:
         user.loyalty_points = synced_points
 
     # 3. Calculate VIP Tier
-    if total_spend >= 15000 or synced_points >= 2000:
+    if total_spend >= 15000 or synced_points >= 15000:
         tier = "Gold 🥇"
         next_tier = "MAX VIP"
         needed = 0
         perk = "🎁 Free Custom Engraving (+400 ETB waived) + 1.5x Points Bonus!"
-    elif total_spend >= 5000 or synced_points >= 1000:
+    elif total_spend >= 5000 or synced_points >= 5000:
         tier = "Silver 🥈"
         next_tier = "Gold 🥇"
         needed = 15000 - total_spend
@@ -54,7 +54,7 @@ def sync_user_loyalty_and_vip(db, user_id: int) -> dict:
         tier = "Bronze 🥉"
         next_tier = "Silver 🥈"
         needed = 5000 - total_spend
-        perk = "🎁 Standard Loyalty Rewards (1 pt per 100 ETB)"
+        perk = "🎁 Standard Loyalty Rewards (1 pt per 1 ETB)"
 
     if user.vip_tier != tier:
         user.vip_tier = tier

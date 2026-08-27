@@ -66,9 +66,9 @@ def verify_payment(db: Session, payment_id: int, admin_user_id: int) -> bool:
         )
         db.add(history)
 
-        # Award loyalty points (10% of total order price) ONLY if not paid via LOYALTY_POINTS
+        # Award loyalty points (1 point per 1 ETB spent) ONLY if not paid via LOYALTY_POINTS
         if payment.payment_method != 'LOYALTY_POINTS' and order.payment_method != 'LOYALTY_POINTS':
-            points_earned = int(order.total_price * 0.10)
+            points_earned = int(order.total_price)
             award_points(
                 db,
                 user_id=order.user_id,
