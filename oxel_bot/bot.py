@@ -109,6 +109,19 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == 'admin_export_csv_menu':
         from handlers.admin import admin_export_csv_menu
         await admin_export_csv_menu(update, context)
+    elif data == 'smm_admin_menu':
+        from handlers.smm import smm_admin_menu
+        await smm_admin_menu(update, context)
+    elif data == 'smm_publish_auto':
+        from handlers.smm import smm_publish_handler
+        await smm_publish_handler(update, context)
+    elif data.startswith('smm_publish_'):
+        pillar_name = data.replace('smm_publish_', '')
+        from handlers.smm import smm_publish_handler
+        await smm_publish_handler(update, context, pillar=pillar_name)
+    elif data == 'smm_preview':
+        from handlers.smm import smm_preview_handler
+        await smm_preview_handler(update, context)
     elif data == 'export_csv_orders':
         await query.answer("📊 Exporting Orders CSV...", show_alert=False)
         db = SessionLocal()

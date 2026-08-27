@@ -67,6 +67,7 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         keyboard = [
             [InlineKeyboardButton("⏳ Pending Verifications", callback_data="admin_pending")],
+            [InlineKeyboardButton("🤖 SMM Superbot Control Center", callback_data="smm_admin_menu")],
             [InlineKeyboardButton("📊 Export PDF Sales Report", callback_data="export_admin_sales_pdf")],
             [InlineKeyboardButton("📁 Export CSV Data Spreadsheets", callback_data="admin_export_csv_menu")],
             [InlineKeyboardButton("📢 Push Broadcast Engine", callback_data="admin_broadcast_menu")],
