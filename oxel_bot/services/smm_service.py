@@ -152,7 +152,14 @@ async def publish_smm_post_to_channel(bot, db: Session, pillar: str = None) -> t
     try:
         text, keyboard, image_path = generate_strategic_smm_post(db, pillar=pillar)
 
-        chat_target = TELEGRAM_CHANNEL if TELEGRAM_CHANNEL.startswith('@') else f"@{TELEGRAM_CHANNEL}"
+        channel_setting = TELEGRAM_CHANNEL.strip()
+        if 't.me/' in channel_setting:
+            channel_name = channel_setting.split('t.me/')[-1].strip('/').split('?')[0]
+            chat_target = f"@{channel_name}"
+        elif not channel_setting.startswith('@'):
+            chat_target = f"@{channel_setting}"
+        else:
+            chat_target = channel_setting
 
         if image_path and os.path.exists(image_path):
             with open(image_path, 'rb') as f:
