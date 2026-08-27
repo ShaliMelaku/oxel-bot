@@ -298,6 +298,22 @@ class Admin(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
+class StockAlert(Base):
+    __tablename__ = 'stock_alerts'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.user_id'), nullable=False)
+    product_id = Column(Integer, ForeignKey('products.id'), nullable=False)
+    alert_type = Column(String(50), default='restock')  # 'restock' or 'price_drop'
+    target_price = Column(Integer, nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (
+        Index('ix_stock_alerts_product_id', 'product_id'),
+        Index('ix_stock_alerts_user_id', 'user_id'),
+    )
+
+
 def get_db():
     db = SessionLocal()
     try:

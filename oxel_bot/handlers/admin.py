@@ -1428,6 +1428,9 @@ async def cms_toggle_stock(update: Update, context: ContextTypes.DEFAULT_TYPE, p
         if product:
             product.in_stock = not product.in_stock
             db.commit()
+            if product.in_stock:
+                from services.alert_service import trigger_restock_notifications
+                await trigger_restock_notifications(context.bot, db, product.id)
             await update.callback_query.answer(f"Stock status set to: {'In Stock' if product.in_stock else 'Out of Stock'}", show_alert=True)
             await cms_edit_product(update, context, product_id)
     finally:
@@ -1443,8 +1446,12 @@ async def cms_add_stock(update: Update, context: ContextTypes.DEFAULT_TYPE, vari
     try:
         variant = db.query(ProductVariant).filter(ProductVariant.id == variant_id).first()
         if variant:
+            was_zero = variant.stock_quantity <= 0
             variant.stock_quantity += amount
             db.commit()
+            if was_zero and variant.stock_quantity > 0:
+                from services.alert_service import trigger_restock_notifications
+                await trigger_restock_notifications(context.bot, db, variant.product_id)
             await update.callback_query.answer(f"✅ Added +{amount} stock to {variant.finish_name} (Total: {variant.stock_quantity})", show_alert=True)
             await cms_edit_product(update, context, variant.product_id)
     finally:

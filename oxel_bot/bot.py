@@ -449,12 +449,26 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         variant_id = int(parts[1]) if len(parts) > 1 else None
         await add_to_cart(update, context, product_id, variant_id=variant_id)
         await checkout(update, context)
-    elif data.startswith('notify_stock_'):
-        await query.answer(
-            "🙏 We're so sorry this piece is temporarily sold out!\n\n"
-            "🔔 You're on our priority list! We will alert you the moment our craftsmen restock this finish.",
-            show_alert=True
-        )
+    elif data.startswith('sub_restock_') or data.startswith('notify_stock_'):
+        pid = int(data.replace('sub_restock_', '').replace('notify_stock_', ''))
+        user_id = update.effective_user.id
+        db = SessionLocal()
+        try:
+            from services.alert_service import subscribe_alert
+            ok, msg = subscribe_alert(db, user_id, pid, alert_type='restock')
+            await query.answer(msg, show_alert=True)
+        finally:
+            db.close()
+    elif data.startswith('sub_pricedrop_'):
+        pid = int(data.replace('sub_pricedrop_', ''))
+        user_id = update.effective_user.id
+        db = SessionLocal()
+        try:
+            from services.alert_service import subscribe_alert
+            ok, msg = subscribe_alert(db, user_id, pid, alert_type='price_drop')
+            await query.answer(msg, show_alert=True)
+        finally:
+            db.close()
     elif data.startswith('inc_'):
         index = int(data.replace('inc_', ''))
         await adjust_quantity(update, context, 'inc', index)
@@ -672,9 +686,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             try:
                 product = db.query(Product).filter(Product.id == product_id).first()
                 if product:
+                    old_price = product.price
                     product.price = new_price
                     db.commit()
                     await update.message.reply_text(f"✅ *Price updated to {new_price:,} ETB for {product.name}!*", parse_mode="Markdown")
+                    if new_price < old_price:
+                        from services.alert_service import trigger_price_drop_notifications
+                        await trigger_price_drop_notifications(context.bot, db, product.id, old_price, new_price)
             finally:
                 db.close()
         except ValueError:

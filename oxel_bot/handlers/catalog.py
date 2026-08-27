@@ -217,14 +217,15 @@ async def show_product_detail(
         else:
             keyboard.append([InlineKeyboardButton("✍️ Add Custom Wood Engraving (+400 ETB)", callback_data=f"engrave_{product.id}")])
 
-        # Add to Cart / Buy Now Row
+        # Add to Cart / Buy Now / Restock & Price Drop Alerts
         if sel_variant.stock_quantity > 0:
             keyboard.append([
                 InlineKeyboardButton("🛒 Add to Cart", callback_data=f"addcart_{product.id}_{sel_variant.id}"),
                 InlineKeyboardButton("⚡ Buy Now", callback_data=f"buynow_{product.id}_{sel_variant.id}")
             ])
+            keyboard.append([InlineKeyboardButton("📉 Alert Me On Price Drop", callback_data=f"sub_pricedrop_{product.id}")])
         else:
-            keyboard.append([InlineKeyboardButton("🔔 Notify When In Stock", callback_data=f"notify_stock_{product.id}")])
+            keyboard.append([InlineKeyboardButton("🔔 Alert Me When Restocked", callback_data=f"sub_restock_{product.id}")])
 
         keyboard.append([
             InlineKeyboardButton("🛒 View Cart", callback_data="view_cart"),
