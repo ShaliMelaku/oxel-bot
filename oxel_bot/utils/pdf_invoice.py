@@ -120,19 +120,34 @@ Telegram: {TELEGRAM_CHANNEL}
     story.append(Spacer(1, 15))
 
     # Totals Summary
-    tot_amt = order_data.get('total_amount', 0)
+    subtotal_val = order_data.get('subtotal', 0)
+    if subtotal_val == 0:
+        subtotal_val = sum(item.get('subtotal', item.get('price', 0) * item.get('quantity', 1)) for item in order_data.get('items', []))
+
+    engraving_fee = order_data.get('engraving_fee', 0)
     disc = order_data.get('discount', 0)
+    shipping_fee = order_data.get('shipping_fee', 0)
+    tot_amt = order_data.get('total_amount', 0)
     pay_method = order_data.get('payment_method', 'TELEBIRR/CBE')
 
     totals_data = [
-        ['', Paragraph('<b>Subtotal:</b>', styles['Normal']), Paragraph(f"{tot_amt + disc:,} ETB", styles['Normal'])],
-        ['', Paragraph('<b>Discount:</b>', styles['Normal']), Paragraph(f"-{disc:,} ETB", styles['Normal']) if disc > 0 else Paragraph("0 ETB", styles['Normal'])],
-        ['', Paragraph('<b>Total Paid:</b>', bold_style), Paragraph(f"<b>{tot_amt:,} ETB</b>", bold_style)],
-        ['', Paragraph('<b>Payment Status:</b>', styles['Normal']), Paragraph("<font color='green'><b>VERIFIED & CONFIRMED</b></font>", styles['Normal'])],
-        ['', Paragraph('<b>Payment Method:</b>', styles['Normal']), Paragraph(f"<b>{pay_method.upper()}</b>", styles['Normal'])]
+        ['', Paragraph('<b>Items Subtotal:</b>', styles['Normal']), Paragraph(f"{subtotal_val:,} ETB", styles['Normal'])]
     ]
 
-    totals_table = Table(totals_data, colWidths=[260, 140, 130])
+    if engraving_fee > 0:
+        totals_data.append(['', Paragraph('<b>Custom Engraving Fee:</b>', styles['Normal']), Paragraph(f"+{engraving_fee:,} ETB", styles['Normal'])])
+
+    if disc > 0:
+        totals_data.append(['', Paragraph('<b>Discount:</b>', styles['Normal']), Paragraph(f"-{disc:,} ETB", styles['Normal'])])
+
+    shipping_str = f"+{shipping_fee:,} ETB" if shipping_fee > 0 else "FREE (0 ETB)"
+    totals_data.append(['', Paragraph('<b>Delivery / Courier Fee:</b>', styles['Normal']), Paragraph(shipping_str, styles['Normal'])])
+
+    totals_data.append(['', Paragraph('<b>Total Paid:</b>', bold_style), Paragraph(f"<b>{tot_amt:,} ETB</b>", bold_style)])
+    totals_data.append(['', Paragraph('<b>Payment Status:</b>', styles['Normal']), Paragraph("<font color='green'><b>VERIFIED & CONFIRMED</b></font>", styles['Normal'])])
+    totals_data.append(['', Paragraph('<b>Payment Method:</b>', styles['Normal']), Paragraph(f"<b>{pay_method.upper()}</b>", styles['Normal'])])
+
+    totals_table = Table(totals_data, colWidths=[240, 150, 140])
     totals_table.setStyle(TableStyle([
         ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 4),

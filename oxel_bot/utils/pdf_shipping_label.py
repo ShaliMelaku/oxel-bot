@@ -102,10 +102,12 @@ def generate_shipping_label(order_data: dict) -> str:
     order_num = order_data.get('order_number', 'N/A')
     ship_date = order_data.get('date', datetime.now().strftime('%b %d, %Y'))
     slot = order_data.get('delivery_slot', 'Standard')
+    shipping_fee = order_data.get('shipping_fee', 0)
+    delivery_note = f" (Incl. {shipping_fee:,} ETB Delivery)" if shipping_fee else ""
 
     track_data = [
         [Paragraph(f"<b>ORDER #:</b> {order_num}", content_bold), Paragraph(f"<b>DATE:</b> {ship_date}", content_regular)],
-        [Paragraph(f"<b>SLOT:</b> {slot}", content_regular), Paragraph(f"<b>TOTAL:</b> {order_data.get('total_price', 0):,} ETB", content_bold)]
+        [Paragraph(f"<b>SLOT:</b> {slot}", content_regular), Paragraph(f"<b>TOTAL:</b> {order_data.get('total_price', 0):,} ETB{delivery_note}", content_bold)]
     ]
     track_table = Table(track_data, colWidths=[1.8 * inch, 1.8 * inch])
     track_table.setStyle(TableStyle([

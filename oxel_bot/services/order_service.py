@@ -285,6 +285,10 @@ def get_shipping_label_data(db: Session, order_identifier: str) -> dict:
         'shipping_address': order.shipping_address or 'Addis Ababa, Ethiopia',
         'delivery_slot': order.delivery_slot or 'Standard Delivery',
         'items': items_list,
-        'total_price': order.total_price,
+        'subtotal': order.subtotal or 0,
+        'discount_amount': order.discount_amount or 0,
+        'shipping_fee': order.shipping_fee or 0,
+        'engraving_fee': order.engraving_fee or 0,
+        'total_price': order.total_price or 0,
         'date': order.created_at.strftime('%b %d, %Y')
     }
