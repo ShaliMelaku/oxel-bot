@@ -30,7 +30,7 @@ def sync_user_loyalty_and_vip(db, user_id: int) -> dict:
         Order.status.in_(['paid', 'confirmed', 'shipped', 'delivered'])
     ).scalar() or 0
 
-    order_earned_pts = total_spend  # 1 point per 1 ETB spent
+    order_earned_pts = total_spend * 4  # 4 points per 1 ETB (1 pt per 0.25 ETB)
 
     # Combined true points balance = max of stored points, transaction sum, or spend-earned points + transactions
     current_stored = user.loyalty_points or 0
